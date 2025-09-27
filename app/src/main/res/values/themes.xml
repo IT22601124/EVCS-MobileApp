@@ -1,5 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-
     <style name="Theme.EVCSMobileApp" parent="android:Theme.Material.Light.NoActionBar" />
+    <!-- Launcher theme shown by the system before your UI renders -->
+    <style name="Theme.EVCSMobileApp.Splash" parent="Theme.SplashScreen">
+        <!-- Background color for the splash surface -->
+        <item name="windowSplashScreenBackground">@color/white</item>
+
+        <!-- Your static/animated logo (VectorDrawable or PNG) -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/logog</item>
+
+
+        <!-- Optional: duration hint (system may ignore) -->
+        <item name="postSplashScreenTheme">@style/Theme.EVCSMobileApp</item>
+    </style>
+
 </resources>
