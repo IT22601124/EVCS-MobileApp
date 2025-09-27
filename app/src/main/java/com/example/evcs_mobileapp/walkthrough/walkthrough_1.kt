@@ -1,4 +1,5 @@
 package com.example.evcs_mobileapp.walkthrough
+
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -14,13 +15,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.evcs_mobileapp.R
-import androidx.compose.ui.res.painterResource
-import androidx.navigation.compose.rememberNavController
-
+import androidx.navigation.NavController
 
 @Composable
-fun walkthrough_1() {
-    val navController = rememberNavController()
+fun walkthrough_1(navController: NavController) {
+
     Column(
         modifier = Modifier
             .fillMaxSize()

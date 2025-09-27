@@ -21,9 +21,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.evcs_mobileapp.R
+import com.example.evcs_mobileapp.login_screens.SignupScreen
 
 @Composable
-fun walkthrough_2(navController: NavController) {
+fun walkthrough_3(navController: NavController) {
 
     Surface(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -43,7 +44,7 @@ fun walkthrough_2(navController: NavController) {
             )
             Spacer(modifier = Modifier.height(24.dp))
             Text(
-                text = "Fast and simple to make reservation & check in",
+                text = "Fast and simple to make reservation & check ",
                 fontSize = 22.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color.Black,
@@ -100,7 +101,7 @@ fun walkthrough_2(navController: NavController) {
                 }
                 Spacer(modifier = Modifier.width(16.dp))
                 Button(
-                    onClick = { navController.navigate("walkthrough_3") },
+                    onClick = { navController.navigate("signup_screen") },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
                     modifier = Modifier.weight(1f)
                 ) {
