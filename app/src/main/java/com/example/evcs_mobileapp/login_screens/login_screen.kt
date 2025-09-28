@@ -1,5 +1,6 @@
 package com.example.evcs_mobileapp.login_screens
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -18,10 +19,12 @@ import androidx.navigation.NavHostController
 import com.example.evcs_mobileapp.R
 import com.example.evcs_mobileapp.network.AuthApi
 import com.example.evcs_mobileapp.network.LoginPayload
+import com.example.evcs_mobileapp.network.LoginResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
@@ -34,6 +37,7 @@ fun login_screen(navController: NavHostController) {
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     // Retrofit setup
     val retrofit = remember {
@@ -92,8 +96,16 @@ fun login_screen(navController: NavHostController) {
                             api.login(payload)
                         }
                         isLoading = false
-                        if (response.isSuccessful) {
+                        if (response.isSuccessful && response.body()?.token != null) {
                             success = true
+                            // Store token in SharedPreferences
+                            val loginResp = response.body()!!
+                            val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
+                            prefs.edit().putString("token", loginResp.token)
+                                .putString("username", loginResp.username)
+                                .putString("role", loginResp.role)
+                                .putString("expiresAt", loginResp.expiresAt)
+                                .apply()
                             navController.navigate("owner_home")
                         } else {
                             errorMessage = "Login failed: ${response.code()}"

@@ -1,4 +1,3 @@
-
 package com.example.evcs_mobileapp.homescreen
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -8,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.HourglassTop
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -70,6 +70,9 @@ fun OwnerHomeScreen(
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                        }
+                        IconButton(onClick = { navController.navigate("profile") }) {
+                            Icon(Icons.Filled.Person, contentDescription = "Profile")
                         }
                     }
                 }

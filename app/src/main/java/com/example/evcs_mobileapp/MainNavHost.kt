@@ -18,6 +18,7 @@ import com.example.evcs_mobileapp.login_screens.SignupScreen
 import com.example.evcs_mobileapp.walkthrough.walkthrough_1
 import com.example.evcs_mobileapp.walkthrough.walkthrough_2
 import com.example.evcs_mobileapp.walkthrough.walkthrough_3
+import com.example.evcs_mobileapp.homescreen.ProfileScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -35,7 +36,12 @@ fun MainNavHost() {
         }
     }
 
-    val startDestination = if (isFirstLaunch) "walkthrough_1" else "login"
+    val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
+    var hasToken by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        hasToken = prefs.getString("token", null)?.isNotEmpty() == true
+    }
+    val startDestination = if (hasToken) "owner_home" else if (isFirstLaunch) "walkthrough_1" else "login"
 
     NavHost(navController = navController, startDestination = startDestination) {
         composable("walkthrough_1") { walkthrough_1(navController) }
@@ -48,5 +54,6 @@ fun MainNavHost() {
         composable("new_booking") { NewBookingScreen(onConfirm = { _, _, _, _ -> navController.navigate("my_bookings") }) }
         composable("booking_history") { BookingHistoryScreen(navController) }
         composable("stations_map") { StationsMapScreen(navController) }
+        composable("profile") { ProfileScreen(navController) }
     }
 }
