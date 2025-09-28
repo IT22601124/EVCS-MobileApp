@@ -11,42 +11,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.example.evcs_mobileapp.R
-import com.example.evcs_mobileapp.network.RegistrationApi
-import com.example.evcs_mobileapp.network.RegistrationPayload
+import com.example.evcs_mobileapp.network.AuthApi
+import com.example.evcs_mobileapp.network.LoginPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.runtime.rememberCoroutineScope
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 
-
 @Composable
-fun SignupScreen(navController: NavHostController) {
-    var nic by remember { mutableStateOf("") }
-    var fullName by remember { mutableStateOf("") }
+fun login_screen(navController: NavHostController) {
     var email by remember { mutableStateOf("") }
-    var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var success by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
 
     // Retrofit setup
     val retrofit = remember {
         Retrofit.Builder()
-            .baseUrl("http://10.0.2.2:5132/")
+            .baseUrl("http://10.0.2.2:5132/api/")
             .client(OkHttpClient.Builder().build())
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
-    val api = remember { retrofit.create(RegistrationApi::class.java) }
-    val coroutineScope = rememberCoroutineScope()
+    val api = remember { retrofit.create(AuthApi::class.java) }
 
     Column(
         modifier = Modifier
@@ -54,51 +51,13 @@ fun SignupScreen(navController: NavHostController) {
             .padding(horizontal = 32.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(30.dp))
-        // Top image (replace with your asset)
-        Box(
-            modifier = Modifier
-                .size(400.dp, 200.dp)
-                .align(Alignment.CenterHorizontally),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(id = R.drawable.signupimage), // Add your logo to drawable
-                contentDescription = "App Logo",
-                modifier = Modifier.fillMaxSize()
-
-            )
-        }
+        Spacer(modifier = Modifier.height(80.dp))
+        Text("Login", fontSize = 24.sp, color = Color(0xFF4CAF50))
         Spacer(modifier = Modifier.height(32.dp))
-        OutlinedTextField(
-            value = nic,
-            onValueChange = { nic = it },
-            label = { Text("NIC", fontSize = 10.sp) },
-            modifier = Modifier.width(300.dp).height(56.dp),
-            shape = RoundedCornerShape(25.dp)
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = fullName,
-            onValueChange = { fullName = it },
-            label = { Text("Full Name", fontSize = 12.sp) },
-            modifier = Modifier.width(300.dp).height(56.dp),
-            shape = RoundedCornerShape(25.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
             label = { Text("Email", fontSize = 12.sp) },
-            modifier = Modifier.width(300.dp).height(56.dp),
-            shape = RoundedCornerShape(25.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = phone,
-            onValueChange = { phone = it },
-            label = { Text("Phone Number", fontSize = 12.sp) },
             modifier = Modifier.width(300.dp).height(56.dp),
             shape = RoundedCornerShape(25.dp)
         )
@@ -111,16 +70,7 @@ fun SignupScreen(navController: NavHostController) {
             modifier = Modifier.width(300.dp).height(56.dp),
             shape = RoundedCornerShape(25.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password", fontSize = 12.sp) },
-            visualTransformation = PasswordVisualTransformation(),
-            shape = RoundedCornerShape(25.dp)
-        )
         Spacer(modifier = Modifier.height(32.dp))
-
         if (isLoading) {
             CircularProgressIndicator()
         }
@@ -128,31 +78,25 @@ fun SignupScreen(navController: NavHostController) {
             Text(it, color = Color.Red, fontSize = 14.sp)
         }
         if (success) {
-            Text("Registration successful!", color = Color(0xFF4CAF50), fontSize = 14.sp)
+            Text("Login successful!", color = Color(0xFF4CAF50), fontSize = 14.sp)
         }
-
         Button(
             onClick = {
-                if (password != confirmPassword) {
-                    errorMessage = "Passwords do not match"
-                    return@Button
-                }
                 isLoading = true
                 errorMessage = null
                 success = false
                 coroutineScope.launch {
-                    val payload = RegistrationPayload(nic, fullName, email, phone, password)
+                    val payload = LoginPayload(email, password)
                     try {
                         val response = withContext(Dispatchers.IO) {
-                            api.registerOwner(payload)
+                            api.login(payload)
                         }
                         isLoading = false
                         if (response.isSuccessful) {
                             success = true
-                            // Optionally navigate to login or home
-                            navController.navigate("login")
+                            navController.navigate("owner_home")
                         } else {
-                            errorMessage = "Registration failed: ${response.code()}"
+                            errorMessage = "Login failed: ${response.code()}"
                         }
                     } catch (e: Exception) {
                         isLoading = false
@@ -161,28 +105,20 @@ fun SignupScreen(navController: NavHostController) {
                 }
             },
             modifier = Modifier
-                .fillMaxWidth()
+                .width(300.dp)
                 .height(48.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)) // Green color
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
         ) {
-            Text("Sign Up", fontSize = 14.sp)
+            Text("Login", fontSize = 14.sp)
         }
         Spacer(modifier = Modifier.height(16.dp))
-        TextButton(
-            onClick = { navController.navigate("login") },
-            modifier = Modifier.align(Alignment.CenterHorizontally)
-        ) {
-            Text("Already have an account? Login", color = Color(0xFF4CAF50), fontSize = 14.sp)
-        }
-
-
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .width(300.dp)
-                .padding(vertical = 16.dp)
+                .padding(vertical = 8.dp)
         ) {
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.weight(1f),
                 color = Color.Gray,
                 thickness = 1.dp
@@ -193,31 +129,27 @@ fun SignupScreen(navController: NavHostController) {
                 fontSize = 14.sp,
                 color = Color.Gray
             )
-            Divider(
+            HorizontalDivider(
                 modifier = Modifier.weight(1f),
                 color = Color.Gray,
                 thickness = 1.dp
             )
         }
-
-
         Button(
             onClick = { /* Handle Google login */ },
             modifier = Modifier
                 .width(300.dp)
-                .fillMaxWidth()
-                .height(48.dp).border(width = 1.dp, color = Color.Gray, shape = RoundedCornerShape(25.dp)),
+                .height(48.dp)
+                .border(width = 1.dp, color = Color.Gray, shape = RoundedCornerShape(25.dp)),
             colors = ButtonDefaults.buttonColors(containerColor = Color.White)
         ) {
             Image(
-                painter = painterResource(id = R.drawable.gicon), // Replace with your Google icon resource
+                painter = painterResource(id = R.drawable.gicon), // Ensure gicon.png exists in drawable
                 contentDescription = "Google Icon",
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text("Login with Google", fontSize = 14.sp, color = Color.Black)
         }
-
-
     }
 }
