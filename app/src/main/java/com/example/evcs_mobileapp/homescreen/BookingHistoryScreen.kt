@@ -15,17 +15,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.evcs_mobileapp.homescreen.BookingStatus
+import com.example.evcs_mobileapp.homescreen.BookingItem
 import java.time.ZonedDateTime
-
-enum class BookingStatus { Pending, Approved, Completed, Canceled }
-
-data class BookingItem(
-    val id: String,
-    val station: String,
-    val startIso: String,
-    val durationMin: Int,
-    val status: BookingStatus
-)
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)

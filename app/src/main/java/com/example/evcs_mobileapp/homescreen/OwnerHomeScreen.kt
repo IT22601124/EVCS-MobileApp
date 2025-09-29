@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 
@@ -146,6 +147,18 @@ fun OwnerHomeScreen(
                     Spacer(Modifier.height(6.dp))
                     KeyValueRow(label = "Time", value = nextBookingTime)
                 }
+            }
+
+            // New Button to navigate to stations_schedules
+            Button(
+                onClick = { navController.navigate("stations_schedules") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .padding(vertical = 8.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
+            ) {
+                Text("View Stations & Schedules", fontSize = 16.sp, color = Color.White)
             }
 
             Spacer(Modifier.weight(1f))

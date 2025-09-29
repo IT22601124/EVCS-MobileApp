@@ -11,7 +11,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.evcs_mobileapp.homescreen.BookingHistoryScreen
-import com.example.evcs_mobileapp.homescreen.NewBookingScreen
+import com.example.evcs_mobileapp.homescreen.BookingSchedulesThenCreateScreen
 import com.example.evcs_mobileapp.homescreen.MyBookingsScreen
 import com.example.evcs_mobileapp.homescreen.StationsMapScreen
 import com.example.evcs_mobileapp.login_screens.SignupScreen
@@ -19,6 +19,7 @@ import com.example.evcs_mobileapp.walkthrough.walkthrough_1
 import com.example.evcs_mobileapp.walkthrough.walkthrough_2
 import com.example.evcs_mobileapp.walkthrough.walkthrough_3
 import com.example.evcs_mobileapp.homescreen.ProfileScreen
+import com.example.evcs_mobileapp.homescreen.StationsAndSchedulesScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -51,9 +52,10 @@ fun MainNavHost() {
         composable("signup") { SignupScreen(navController) }
         composable("owner_home") { OwnerHomeScreen(navController) }
         composable("my_bookings") { MyBookingsScreen(navController) }
-        composable("new_booking") { NewBookingScreen(onConfirm = { _, _, _, _ -> navController.navigate("my_bookings") }) }
+        composable("new_booking") { BookingSchedulesThenCreateScreen() }
         composable("booking_history") { BookingHistoryScreen(navController) }
         composable("stations_map") { StationsMapScreen(navController) }
         composable("profile") { ProfileScreen(navController) }
+        composable("stations_schedules") { StationsAndSchedulesScreen() }
     }
 }
