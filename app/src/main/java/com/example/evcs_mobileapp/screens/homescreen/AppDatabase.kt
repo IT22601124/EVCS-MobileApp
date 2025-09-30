@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import androidx.room.Database
 import androidx.room.RoomDatabase

@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -15,8 +15,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-import com.example.evcs_mobileapp.homescreen.BookingStatus
-import com.example.evcs_mobileapp.homescreen.BookingItem
+import com.example.evcs_mobileapp.screens.homescreen.BookingStatus
+import com.example.evcs_mobileapp.screens.homescreen.BookingItem
 import java.time.ZonedDateTime
 
 @RequiresApi(Build.VERSION_CODES.O)

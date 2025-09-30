@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import android.app.DatePickerDialog
 import android.os.Build
@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.evcs_mobileapp.homescreen.ScheduleSlotDto
+import com.example.evcs_mobileapp.screens.homescreen.ScheduleSlotDto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,7 +68,7 @@ fun StationsAndSchedulesScreen() {
             val res = withContext(Dispatchers.IO) { http.newCall(reqBuilder.build()).execute() }
             if (res.isSuccessful) {
                 val body = res.body?.string().orEmpty()
-                val type = object : TypeToken<List<StationDto>>() {}.type
+                val type = object : com.google.gson.reflect.TypeToken<List<StationDto>>() {}.type
                 stations = gson.fromJson(body, type)
             } else {
                 error = "Failed to fetch stations: ${res.message}"
@@ -91,7 +91,7 @@ fun StationsAndSchedulesScreen() {
                 val res = withContext(Dispatchers.IO) { http.newCall(reqBuilder.build()).execute() }
                 if (res.isSuccessful) {
                     val body = res.body?.string().orEmpty()
-                    val type = object : TypeToken<StationScheduleDto>() {}.type
+                    val type = object : com.google.gson.reflect.TypeToken<StationScheduleDto>() {}.type
                     val schedule: StationScheduleDto? = gson.fromJson(body, type)
                     schedules = schedule?.slots.orEmpty()
                 } else {

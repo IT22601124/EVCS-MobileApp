@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import android.content.Context
 import androidx.compose.foundation.Image

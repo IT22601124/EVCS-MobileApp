@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -60,7 +60,7 @@ fun MyBookingsScreen(
                 val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
                 if (response.isSuccessful) {
                     val body = response.body?.string() ?: "[]"
-                    val type = object : TypeToken<List<BookingItem>>() {}.type
+                    val type = object : com.google.gson.reflect.TypeToken<List<BookingItem>>() {}.type
                     bookings = Gson().fromJson(body, type)
                 } else {
                     error = "Failed to fetch bookings: ${response.message}"

@@ -1,7 +1,7 @@
 package com.example.evcs_mobileapp
 
-import com.example.evcs_mobileapp.login_screens.login_screen
-import com.example.evcs_mobileapp.homescreen.OwnerHomeScreen
+import com.example.evcs_mobileapp.screens.login_screens.LoginScreen
+import com.example.evcs_mobileapp.screens.homescreen.OwnerHomeScreen
 import android.content.Context
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -10,16 +10,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.evcs_mobileapp.homescreen.BookingHistoryScreen
-import com.example.evcs_mobileapp.homescreen.BookingSchedulesThenCreateScreen
-import com.example.evcs_mobileapp.homescreen.MyBookingsScreen
-import com.example.evcs_mobileapp.homescreen.StationsMapScreen
-import com.example.evcs_mobileapp.login_screens.SignupScreen
-import com.example.evcs_mobileapp.walkthrough.walkthrough_1
-import com.example.evcs_mobileapp.walkthrough.walkthrough_2
-import com.example.evcs_mobileapp.walkthrough.walkthrough_3
-import com.example.evcs_mobileapp.homescreen.ProfileScreen
-import com.example.evcs_mobileapp.homescreen.StationsAndSchedulesScreen
+import com.example.evcs_mobileapp.screens.homescreen.BookingHistoryScreen
+import com.example.evcs_mobileapp.screens.homescreen.BookingSchedulesThenCreateScreen
+import com.example.evcs_mobileapp.screens.homescreen.MyBookingsScreen
+import com.example.evcs_mobileapp.screens.homescreen.StationsMapScreen
+import com.example.evcs_mobileapp.screens.login_screens.SignupScreen
+import com.example.evcs_mobileapp.screens.walkthrough.walkthrough_1
+import com.example.evcs_mobileapp.screens.walkthrough.walkthrough_2
+import com.example.evcs_mobileapp.screens.walkthrough.walkthrough_3
+import com.example.evcs_mobileapp.screens.homescreen.ProfileScreen
+import com.example.evcs_mobileapp.screens.homescreen.StationsAndSchedulesScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -48,7 +48,7 @@ fun MainNavHost() {
         composable("walkthrough_1") { walkthrough_1(navController) }
         composable("walkthrough_2") { walkthrough_2(navController) }
         composable("walkthrough_3") { walkthrough_3(navController) }
-        composable("login") {login_screen(navController) }
+        composable("login") {LoginScreen(navController) }
         composable("signup") { SignupScreen(navController) }
         composable("owner_home") { OwnerHomeScreen(navController) }
         composable("my_bookings") { MyBookingsScreen(navController) }

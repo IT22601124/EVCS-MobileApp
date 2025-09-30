@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -55,7 +55,7 @@ fun StationsWithSchedulesScreen() {
             val res = withContext(Dispatchers.IO) { http.newCall(reqBuilder.build()).execute() }
             if (res.isSuccessful) {
                 val body = res.body?.string().orEmpty()
-                val type = object : TypeToken<List<StationWithSchedulesDto>>() {}.type
+                val type = object : com.google.gson.reflect.TypeToken<List<StationWithSchedulesDto>>() {}.type
                 stations = gson.fromJson(body, type)
             } else {
                 error = "Failed to fetch stations: ${res.message}"

@@ -9,7 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import com.example.evcs_mobileapp.intial.MainViewModel
+import com.example.evcs_mobileapp.screens.intial.MainViewModel
 import com.example.evcs_mobileapp.ui.theme.EVCSMobileAppTheme
 
 class MainActivity : ComponentActivity() {

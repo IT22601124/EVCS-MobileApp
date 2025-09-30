@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.homescreen
+package com.example.evcs_mobileapp.screens.homescreen
 
 import android.app.DatePickerDialog
 import android.os.Build
@@ -103,7 +103,7 @@ fun BookingSchedulesThenCreateScreen() {
                     return@withContext Result.failure(Exception("Failed to fetch schedules: ${res.code} ${res.message}"))
                 }
                 val body = res.body?.string().orEmpty()
-                val type = object : TypeToken<List<ScheduleDto>>() {}.type
+                val type = object : com.google.gson.reflect.TypeToken<List<ScheduleDto>>() {}.type
                 val parsed: List<ScheduleDto> = gson.fromJson(body, type) ?: emptyList()
                 Result.success(parsed)
             } catch (e: Exception) {

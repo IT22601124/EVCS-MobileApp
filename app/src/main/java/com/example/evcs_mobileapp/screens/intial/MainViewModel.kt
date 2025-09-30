@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.intial
+package com.example.evcs_mobileapp.screens.intial
 
 import android.app.Application
 import android.content.Context

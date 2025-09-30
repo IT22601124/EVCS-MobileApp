@@ -1,4 +1,4 @@
-package com.example.evcs_mobileapp.intial
+package com.example.evcs_mobileapp.screens.intial
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
