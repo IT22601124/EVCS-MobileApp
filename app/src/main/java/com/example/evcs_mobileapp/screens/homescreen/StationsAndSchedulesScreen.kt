@@ -57,6 +57,28 @@ fun StationsAndSchedulesScreen() {
     val http = remember { OkHttpClient() }
     val gson = remember { Gson() }
 
+    // Show error if token is missing
+    if (token.isNullOrBlank()) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Card(
+                modifier = Modifier.fillMaxWidth(0.98f),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFF7F7F7)),
+                elevation = CardDefaults.cardElevation(8.dp)
+            ) {
+                Column(
+                    Modifier.fillMaxWidth().padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("Stations & Schedules", style = MaterialTheme.typography.headlineSmall, color = Color(0xFF4CAF50))
+                    Text("You are not logged in. Please login to view stations${token}", color = Color.Red)
+                }
+            }
+        }
+        return
+    }
+
     // Fetch stations on first load
     LaunchedEffect(Unit) {
         loading = true

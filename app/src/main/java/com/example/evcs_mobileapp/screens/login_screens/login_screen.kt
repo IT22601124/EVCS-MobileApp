@@ -37,7 +37,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.room.Room
+import com.example.evcs_mobileapp.AppConstants
 import com.example.evcs_mobileapp.R
+import com.example.evcs_mobileapp.db.AppDatabase
+import com.example.evcs_mobileapp.db.AuthResponseEntity
 import com.example.evcs_mobileapp.network.AuthApi
 import com.example.evcs_mobileapp.network.LoginPayload
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +55,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 @Composable
 fun LoginScreen(
     navController: NavHostController,
-    baseUrl: String = "http://10.0.2.2:5132/api/"
+    baseUrl: String = AppConstants.BASE_URL
 ) {
     // --- State ---
     var username by rememberSaveable { mutableStateOf("") }
@@ -76,6 +80,15 @@ fun LoginScreen(
             .build()
     }
     val api = remember { retrofit.create(AuthApi::class.java) }
+
+    val db = remember(context) {
+        Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "evcs_db"
+        ).build()
+    }
+    val dao = db.authResponseDao()
 
     // --- UI ---
     Scaffold { padding ->
@@ -247,14 +260,33 @@ fun LoginScreen(
                                         isLoading = false
                                         if (resp.isSuccessful && resp.body()?.token != null) {
                                             val body = resp.body()!!
-                                            val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
-                                            prefs.edit()
-                                                .putString("token", body.token)
-                                                .putString("username", body.username)
-                                                .putString("role", body.role)
-                                                .putString("expiresAt", body.expiresAt)
-                                                .apply()
-                                            navController.navigate("owner_home")
+                                            withContext(Dispatchers.IO) {
+                                                dao.clear()
+                                                dao.insert(AuthResponseEntity(
+                                                    nic = body.nic ?: "",
+                                                    fullName = body.fullName,
+                                                    email = body.email,
+                                                    phone = body.phone,
+                                                    isActive = body.isActive,
+                                                    role = body.role,
+                                                    token = body.token,
+                                                    expiresAt = body.expiresAt,
+                                                    username = body.username,
+                                                    isOwner = body.isOwner,
+                                                    ownerNic = body.ownerNic
+                                                ))
+                                            }
+                                            // Save token and role to SharedPreferences for other screens
+                                            val prefs = context.getSharedPreferences("evcs_prefs", android.content.Context.MODE_PRIVATE)
+                                            prefs.edit().putString("token", body.token).putString("role", body.role).apply()
+                                            // Navigate based on role
+                                            if (body.role == "Owner") {
+                                                navController.navigate("owner_home")
+                                            } else if (body.role == "Backoffice" || body.role == "admin" || body.role == "operator") {
+                                                navController.navigate("operator_home")
+                                            } else {
+                                                errorMessage = "Unknown user role. Please contact support."
+                                            }
                                         } else {
                                             errorMessage = "Invalid credentials. Please try again."
                                         }

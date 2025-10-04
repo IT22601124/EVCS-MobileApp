@@ -1,5 +1,6 @@
 package com.example.evcs_mobileapp.screens.login_screens
 
+import android.util.Patterns
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -40,14 +41,17 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.example.evcs_mobileapp.R
-import com.example.evcs_mobileapp.network.RegistrationApi
-import com.example.evcs_mobileapp.network.RegistrationPayload
+import com.example.evcs_mobileapp.db.AppDatabase
+import com.example.evcs_mobileapp.db.AuthResponseEntity
+import com.example.evcs_mobileapp.network.AuthApi
+import com.example.evcs_mobileapp.network.SignupPayload
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import androidx.room.Room
 
 enum class Strength(val label: String) { WEAK("Weak"), MED("Medium"), STRONG("Strong") }
 
@@ -55,7 +59,7 @@ enum class Strength(val label: String) { WEAK("Weak"), MED("Medium"), STRONG("St
 @Composable
 fun SignupScreen(
     navController: NavHostController,
-    baseUrl: String = "http://10.0.2.2:5132/"
+    baseUrl: String = "http://10.0.2.2:5132/api/"
 ) {
     // ---- State ----
     var nic by rememberSaveable { mutableStateOf("") }
@@ -83,7 +87,7 @@ fun SignupScreen(
         return re.matches(s.trim())
     }
     fun isValidEmail(s: String) =
-        android.util.Patterns.EMAIL_ADDRESS.matcher(s.trim()).matches()
+        Patterns.EMAIL_ADDRESS.matcher(s.trim()).matches()
 
     fun isValidPhone(s: String): Boolean {
         // Local mobile format: 0 + 9 digits (total 10). Adjust to your needs.
@@ -126,7 +130,17 @@ fun SignupScreen(
             .addConverterFactory(GsonConverterFactory.create())
             .build()
     }
-    val api = remember { retrofit.create(RegistrationApi::class.java) }
+    val api = remember { retrofit.create(AuthApi::class.java) }
+
+    // ---- Room Database ----
+    val db = remember(context) {
+        Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "evcs_db"
+        ).build()
+    }
+    val dao = db.authResponseDao()
 
     // ---- UI ----
     Scaffold { padding ->
@@ -162,7 +176,7 @@ fun SignupScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Image(
-                            painter = painterResource(id = R.drawable.logog), // Add walkthrough_2.png to drawable
+                            painter = painterResource(id = R.drawable.logog),
                             contentDescription = "Reservation walkthrough",
                             modifier = Modifier.matchParentSize(),
                             contentScale = ContentScale.Crop,
@@ -272,7 +286,7 @@ fun SignupScreen(
                             shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        if (phoneError) Text("Enter a valid number (e.g., 07XXXXXXXX or 0XXXXXXXXX)", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                        if (phoneError) Text("Enter a valid number (e.g., 0712345678)", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
 
                         // Password
                         OutlinedTextField(
@@ -331,145 +345,178 @@ fun SignupScreen(
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(pwdStrength.label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (pwdError) Text("Password must be at least 6 characters", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                            if (pwdError) Text("Password must be at least 6 characters", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
 
-                        // Confirm Password
-                        OutlinedTextField(
-                            value = confirmPassword,
-                            onValueChange = { confirmPassword = it; errorMessage = null },
-                            label = { Text("Confirm password") },
-                            leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
-                            singleLine = true,
-                            isError = confirmError,
-                            visualTransformation = if (showPwd2) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                IconButton(onClick = { showPwd2 = !showPwd2 }) {
-                                    Icon(
-                                        imageVector = if (showPwd2) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                                        contentDescription = if (showPwd2) "Hide password" else "Show password"
-                                    )
-                                }
-                            },
-                            keyboardOptions = KeyboardOptions(
-                                keyboardType = KeyboardType.Password,
-                                imeAction = ImeAction.Done
-                            ),
-                            shape = RoundedCornerShape(14.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                        if (confirmError) Text("Passwords do not match", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
-
-                        // Terms
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(checked = acceptTerms, onCheckedChange = { acceptTerms = it })
-                            Text(
-                                "I agree to the Terms & Privacy Policy",
-                                style = MaterialTheme.typography.labelLarge
-                            )
-                        }
-
-                        // Submit
-                        Button(
-                            onClick = {
-                                errorMessage = null
-                                if (!formValid) return@Button
-                                isLoading = true
-                                scope.launch {
-                                    try {
-                                        val payload = RegistrationPayload(
-                                            nic = nic.trim(),
-                                            fullName = fullName.trim(),
-                                            email = email.trim(),
-                                            phone = phone.trim(),
-                                            password = password
+                            // Confirm Password
+                            OutlinedTextField(
+                                value = confirmPassword,
+                                onValueChange = { confirmPassword = it; errorMessage = null },
+                                label = { Text("Confirm password") },
+                                leadingIcon = { Icon(Icons.Filled.Lock, contentDescription = null) },
+                                singleLine = true,
+                                isError = confirmError,
+                                visualTransformation = if (showPwd2) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(onClick = { showPwd2 = !showPwd2 }) {
+                                        Icon(
+                                            imageVector = if (showPwd2) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
+                                            contentDescription = if (showPwd2) "Hide password" else "Show password"
                                         )
-                                        val resp = withContext(Dispatchers.IO) { api.registerOwner(payload) }
-                                        isLoading = false
-                                        if (resp.isSuccessful) {
-                                            success = true
-                                            navController.navigate("login")
-                                        } else {
-                                            errorMessage = "Registration failed: ${resp.code()}"
-                                        }
-                                    } catch (e: Exception) {
-                                        isLoading = false
-                                        errorMessage = "Couldn’t reach the server. Check your connection."
                                     }
+                                },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Password,
+                                    imeAction = ImeAction.Done
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                            if (confirmError) Text("Passwords do not match", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+
+                            // Terms
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(checked = acceptTerms, onCheckedChange = { acceptTerms = it })
+                                Text(
+                                    "I agree to the Terms & Privacy Policy",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+
+                            // Submit
+                            Button(
+                                onClick = {
+                                    errorMessage = null
+                                    if (!formValid) return@Button
+                                    isLoading = true
+                                    scope.launch {
+                                        try {
+                                            val payload = SignupPayload(
+                                                nic = nic,
+                                                fullName = fullName,
+                                                email = email,
+                                                phone = phone,
+                                                password = password,
+                                                role = "Owner"
+                                            )
+                                            val resp = withContext(Dispatchers.IO) {
+                                                api.signup(payload)
+                                            }
+                                            isLoading = false
+                                            if (resp.isSuccessful) {
+                                                val body = resp.body()!!
+                                                withContext(Dispatchers.IO) {
+                                                    dao.clear()
+                                                    dao.insert(AuthResponseEntity(
+                                                        nic = body.nic ?: "",
+                                                        fullName = body.fullName,
+                                                        email = body.email,
+                                                        phone = body.phone,
+                                                        isActive = body.isActive,
+                                                        role = body.role,
+                                                        token = body.token,
+                                                        expiresAt = body.expiresAt,
+                                                        username = body.username,
+                                                        isOwner = body.isOwner,
+                                                        ownerNic = body.ownerNic
+                                                    ))
+                                                }
+                                                success = true
+                                                navController.navigate("owner_home")
+                                            } else {
+                                                errorMessage = "Signup failed. Please try again."
+                                            }
+                                        } catch (e: Exception) {
+                                            isLoading = false
+                                            errorMessage = "Couldn’t reach the server. Check your connection."
+                                        }
+                                    }
+                                },
+                                enabled = formValid && !isLoading,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(14.dp)
+                            ) {
+                                if (isLoading) {
+                                    CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                                    Spacer(Modifier.width(10.dp))
+                                    Text("Creating account…")
+                                } else {
+                                    Text("Sign up")
                                 }
-                            },
-                            enabled = formValid && !isLoading,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(14.dp)
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+                            }
+
+                            // Subtle feedback
+                            if (!errorMessage.isNullOrBlank()) {
+                                Text(
+                                    errorMessage!!,
+                                    color = MaterialTheme.colorScheme.error,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            if (success) {
+                                Text(
+                                    "Registration successful!",
+                                    color = Color(0xFF4CAF50),
+                                    fontSize = 13.sp
+                                )
+                            }
+
+                            // Divider
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp, bottom = 2.dp)
+                            ) {
+                                Divider(Modifier.weight(1f))
+                                Text(
+                                    "  or  ",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Divider(Modifier.weight(1f))
+                            }
+
+                            // Google
+                            OutlinedButton(
+                                onClick = { /* TODO: Google Sign-In */ },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                                shape = RoundedCornerShape(14.dp),
+                                border = ButtonDefaults.outlinedButtonBorder
+                            ) {
+                                Image(
+                                    painter = painterResource(id = R.drawable.gicon),
+                                    contentDescription = "Google",
+                                    modifier = Modifier.size(20.dp)
+                                )
                                 Spacer(Modifier.width(10.dp))
-                                Text("Creating account…")
-                            } else {
-                                Text("Sign up")
+                                Text("Continue with Google")
                             }
                         }
-
-                        // Subtle feedback
-                        if (!errorMessage.isNullOrBlank()) {
-                            Text(errorMessage!!, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                        }
-                        if (success) {
-                            Text("Registration successful!", color = Color(0xFF4CAF50), fontSize = 13.sp)
-                        }
-
-                        // Divider
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 6.dp, bottom = 2.dp)
-                        ) {
-                            Divider(Modifier.weight(1f))
-                            Text("  or  ", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Divider(Modifier.weight(1f))
-                        }
-
-                        // Google
-                        OutlinedButton(
-                            onClick = { /* TODO: Google Sign-In */ },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(48.dp),
-                            shape = RoundedCornerShape(14.dp),
-                            border = ButtonDefaults.outlinedButtonBorder
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.gicon),
-                                contentDescription = "Google",
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(Modifier.width(10.dp))
-                            Text("Continue with Google")
-                        }
                     }
-                }
 
-                Spacer(Modifier.height(16.dp))
-                TextButton(onClick = { navController.navigate("login") }) {
-                    Text("Already have an account? Log in")
-                }
+                    Spacer(Modifier.height(16.dp))
+                    TextButton(onClick = { navController.navigate("login") }) {
+                        Text("Already have an account? Log in")
+                    }
 
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "By signing up, you agree to our Terms & Privacy Policy.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-                Spacer(Modifier.height(12.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "By signing up, you agree to our Terms & Privacy Policy.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
             }
         }
     }
-}
+
 
 @Preview(showBackground = true)
 @Composable

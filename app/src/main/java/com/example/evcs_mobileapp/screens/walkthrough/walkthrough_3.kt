@@ -138,7 +138,7 @@ fun Walkthrough3Content(
 @Composable
 fun walkthrough_3(navController: NavController) {
     Walkthrough3Content(
-        onNext = { navController.navigate("signup_screen") },
+        onNext = { navController.navigate("signup") },
         onSkip = { /* navController.navigate("login_screen") */ }
     )
 }
