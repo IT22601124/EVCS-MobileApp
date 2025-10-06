@@ -11,8 +11,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.evcs_mobileapp.screens.homescreen.BookingHistoryScreen
-import com.example.evcs_mobileapp.screens.homescreen.BookingSchedulesThenCreateScreen
 import com.example.evcs_mobileapp.screens.homescreen.MyBookingsScreen
+import com.example.evcs_mobileapp.screens.homescreen.NewBookingScreen
 import com.example.evcs_mobileapp.screens.homescreen.StationsMapScreen
 import com.example.evcs_mobileapp.screens.login_screens.SignupScreen
 import com.example.evcs_mobileapp.screens.walkthrough.walkthrough_1
@@ -25,6 +25,7 @@ import com.example.evcs_mobileapp.screens.operator_screens.ScanQrScreen
 import com.example.evcs_mobileapp.screens.operator_screens.ActiveBookingsScreen
 import com.example.evcs_mobileapp.screens.operator_screens.OperatorLogoutScreen
 import com.example.evcs_mobileapp.screens.operator_screens.ScheduleCreateScreen
+import com.example.evcs_mobileapp.viewmodel.BookingViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -57,6 +58,7 @@ suspend fun getUserRoleFromServer(token: String): String? {
 @Composable
 fun MainNavHost() {
     val navController = rememberNavController()
+    val bookingViewModel: BookingViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
     val context = LocalContext.current
     var isFirstLaunch by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf<String?>(null) }
@@ -108,11 +110,11 @@ fun MainNavHost() {
             composable("signup") { SignupScreen(navController) }
             composable("owner_home") { OwnerHomeScreen(navController) }
             composable("my_bookings") { MyBookingsScreen(navController) }
-            composable("new_booking") { BookingSchedulesThenCreateScreen() }
+            composable("new_booking") { NewBookingScreen(navController, bookingViewModel) }
             composable("booking_history") { BookingHistoryScreen(navController) }
             composable("stations_map") { StationsMapScreen(navController) }
             composable("profile") { ProfileScreen(navController) }
-            composable("stations_schedules") { StationsAndSchedulesScreen() }
+            composable("stations_schedules") { StationsAndSchedulesScreen(navController, bookingViewModel) }
             composable("operator_home") { OperatorHomeScreen(navController) }
             composable("scan_qr") { ScanQrScreen(navController) }
             composable("active_bookings") { ActiveBookingsScreen(navController) }
