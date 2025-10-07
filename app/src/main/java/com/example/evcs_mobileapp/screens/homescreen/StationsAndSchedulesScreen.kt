@@ -22,8 +22,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.evcs_mobileapp.model.ScheduleWithStationDto
-import com.example.evcs_mobileapp.model.ScheduleSlotDto
+import com.example.evcs_mobileapp.model.StationWithSchedulesDto
 import com.example.evcs_mobileapp.viewmodel.BookingViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.Dispatchers
@@ -45,7 +44,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("evcs_prefs", android.content.Context.MODE_PRIVATE)
     val token = prefs.getString("token", null)
-    var schedules by remember { mutableStateOf<List<ScheduleWithStationDto>>(emptyList()) }
+    var stationsWithSchedules by remember { mutableStateOf<List<StationWithSchedulesDto>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     val http = remember { OkHttpClient() }
@@ -71,7 +70,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                 return@launch
             }
 
-            val url = "http://10.0.2.2:5132/api/schedules/with-stations"
+            val url = "http://10.0.2.2:5132/api/stations/with-weekly-schedules"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $token")
@@ -84,14 +83,15 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                     val body = response.body?.string().orEmpty()
                     response to body
                 }
+                Log.d("SchedulesAPI", "HTTP Response: ${result.first}")
                 val response = result.first
                 val body = result.second
 
                 when (response.code) {
                     200 -> {
                         Log.d("SchedulesAPI", "Response body: $body")
-                        val type = object : TypeToken<List<ScheduleWithStationDto>>() {}.type
-                        schedules = gson.fromJson(body, type)
+                        val type = object : TypeToken<List<StationWithSchedulesDto>>() {}.type
+                        stationsWithSchedules = gson.fromJson(body, type)
                         error = ""
                     }
                     401 -> {
@@ -164,8 +164,11 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
         fetchSchedules()
     }
 
-    val today = "2025-10-06"
-    val filteredSchedules = schedules.filter { it.date == today }
+    val today = "2025-10-08" // Use current date
+    // Filter stations that have at least one schedule for today
+    val stationsWithTodaySchedules = stationsWithSchedules.filter { station ->
+        station.schedules.any { it.date == today }
+    }
 
     Box(
         Modifier
@@ -264,7 +267,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                             }
                         }
                     }
-                    filteredSchedules.isEmpty() -> {
+                    stationsWithTodaySchedules.isEmpty() -> {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -314,16 +317,13 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                         }
                     }
                     else -> {
-                        val schedulesByStation = filteredSchedules.groupBy { it.station.id }
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(schedulesByStation.entries.toList()) { (stationId, stationSchedules) ->
-                                val station = stationSchedules.first().station
-                                val stationName = if (station.name.isNullOrBlank() || station.name == "null")
-                                    "Unknown Station" else station.name
-                                val stationAddress = if (station.address.isNullOrBlank() || station.address == "null")
-                                    "Address not available" else station.address
+                            items(stationsWithTodaySchedules) { station ->
+                                val stationName = station.name ?: "Unknown Station"
+                                val stationAddress = station.address ?: "Address not available"
+                                val todaySchedules = station.schedules.filter { it.date == today }
 
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
@@ -372,24 +372,23 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                                             color = Color(0xFFE0E0E0)
                                         )
 
-                                        // Schedules for this station
-                                        stationSchedules.forEach { schedule ->
-                                            if (schedule.slots.isEmpty()) {
+                                        // Schedules for today
+                                        if (todaySchedules.isEmpty()) {
+                                            Text(
+                                                "No time slots available for today",
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = textSecondary,
+                                                modifier = Modifier.padding(vertical = 8.dp)
+                                            )
+                                        } else {
+                                            todaySchedules.forEach { schedule ->
                                                 Text(
-                                                    "No time slots available for this date",
-                                                    style = MaterialTheme.typography.bodyMedium,
-                                                    color = textSecondary,
-                                                    modifier = Modifier.padding(vertical = 8.dp)
-                                                )
-                                            } else {
-                                                Text(
-                                                    "Available Time Slots",
+                                                    "Available Time Slots for ${schedule.date}",
                                                     style = MaterialTheme.typography.titleMedium,
                                                     fontWeight = FontWeight.SemiBold,
                                                     color = Color(0xFF212121),
                                                     modifier = Modifier.padding(bottom = 12.dp)
                                                 )
-
                                                 schedule.slots.forEach { slot ->
                                                     val slotText = "${slot.start} - ${slot.end}"
                                                     val statusText = if (slot.available) "Available" else "Full"
@@ -400,7 +399,20 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                                                             .fillMaxWidth()
                                                             .padding(vertical = 6.dp)
                                                             .clickable(enabled = slot.available) {
-                                                                bookingViewModel.setBooking(station, schedule.date, slot)
+                                                                bookingViewModel.setBooking(
+                                                                    com.example.evcs_mobileapp.model.StationDto(
+                                                                        id = station.id,
+                                                                        name = station.name,
+                                                                        address = station.address,
+                                                                        latitude = station.latitude,
+                                                                        longitude = station.longitude,
+                                                                        type = station.type,
+                                                                        slots = station.slots,
+                                                                        isActive = station.isActive
+                                                                    ),
+                                                                    schedule.date,
+                                                                    slot
+                                                                )
                                                                 navController.navigate("new_booking")
                                                             },
                                                         shape = RoundedCornerShape(8.dp),
