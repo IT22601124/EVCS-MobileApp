@@ -3,26 +3,19 @@ package com.example.evcs_mobileapp.screens.operator_screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.EvStation
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,20 +26,35 @@ fun OperatorHomeScreen(navController: NavHostController) {
     val email = prefs.getString("email", "operator@evcs.com") ?: "operator@evcs.com"
     val role = prefs.getString("role", "Operator") ?: "Operator"
 
-    val showMenu = remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
+    var selectedMenuIndex by remember { mutableStateOf(0) }
+
+    val menuItems = listOf(
+        Triple("Scan QR", Icons.Filled.QrCodeScanner, "scan_qr"),
+        Triple("Pending Bookings", Icons.Filled.Schedule, "pending_bookings"),
+        Triple("Manage Bookings", Icons.Filled.ManageAccounts, "manage_bookings"),
+        Triple("Active Bookings", Icons.Filled.List, "active_bookings"),
+        Triple("Logout", Icons.Filled.Logout, "operator_logout")
+    )
 
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
-                    Text("Dashboard", style = MaterialTheme.typography.headlineMedium , fontSize = 18.sp)
+                    Text(
+                        "Operator Dashboard",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold)
+                    )
                 },
                 navigationIcon = {
                     Icon(
-                        Icons.Filled.EvStation,
-                        contentDescription = "EV Station",
+                        Icons.Filled.Menu,
+                        contentDescription = "Menu",
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.clickable { showMenu.value = !showMenu.value }
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .size(28.dp)
+                            .clickable { showMenu = !showMenu }
                     )
                 },
                 actions = {
@@ -54,7 +62,7 @@ fun OperatorHomeScreen(navController: NavHostController) {
                         Icons.Filled.Person,
                         contentDescription = "Profile",
                         modifier = Modifier
-                            .size(24.dp)
+                            .size(28.dp)
                             .clickable { navController.navigate("operator_profile") },
                         tint = MaterialTheme.colorScheme.primary
                     )
@@ -70,22 +78,15 @@ fun OperatorHomeScreen(navController: NavHostController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(MaterialTheme.colorScheme.background)
         ) {
-            // 🔹 Full-height NavigationRail
-            if (showMenu.value) {
-                var selectedMenuIndex by remember { mutableStateOf(0) }
-                val menuItems = listOf(
-                    Triple("Scan QR", Icons.Filled.QrCodeScanner, "scan_qr"),
-                    Triple("Active Bookings", Icons.Filled.List, "active_bookings"),
-                    Triple("Logout", Icons.Filled.Logout, "operator_logout")
-                )
-
+            // 🔹 Full-height NavigationRail (sidebar)
+            if (showMenu) {
                 NavigationRail(
                     containerColor = MaterialTheme.colorScheme.surfaceVariant,
                     modifier = Modifier
                         .fillMaxHeight()
-                        .width(100.dp)
+                        .width(110.dp)
+                        .padding(vertical = 8.dp)
                 ) {
                     menuItems.forEachIndexed { index, item ->
                         NavigationRailItem(
@@ -93,41 +94,49 @@ fun OperatorHomeScreen(navController: NavHostController) {
                             onClick = {
                                 selectedMenuIndex = index
                                 navController.navigate(item.third)
-                                showMenu.value = false // Hide menu after navigation
+                                showMenu = false
                             },
                             icon = { Icon(item.second, contentDescription = item.first) },
-                            label = { Text(item.first) },
+                            label = {
+                                Text(
+                                    item.first,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontSize = 12.sp
+                                )
+                            },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = if (item.first == "Logout") Color.White else MaterialTheme.colorScheme.primary,
                                 selectedTextColor = if (item.first == "Logout") Color.White else MaterialTheme.colorScheme.primary,
-                                indicatorColor = if (item.first == "Logout") Color(0xFFD32F2F) else MaterialTheme.colorScheme.surfaceVariant
+                                indicatorColor = if (item.first == "Logout") Color(0xFFD32F2F) else MaterialTheme.colorScheme.surface
                             )
                         )
                     }
                 }
             }
 
-            // 🔹 Main Dashboard Area
-            Box(
+            // 🔹 Dashboard Content Area
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(16.dp),
-                contentAlignment = Alignment.TopCenter
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Welcome Card
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 32.dp),
-                    shape = MaterialTheme.shapes.large,
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                        .padding(vertical = 16.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = "Welcome, $fullName!",
@@ -138,18 +147,55 @@ fun OperatorHomeScreen(navController: NavHostController) {
                             fontSize = 16.sp,
                             color = Color.Gray
                         )
+                        Text(
+                            text = email,
+                            fontSize = 14.sp,
+                            color = Color.Gray
+                        )
                     }
                 }
 
-                // Button to navigate to ScheduleCreateScreen
-                Button(
-                    onClick = { navController.navigate("schedule_create") },
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Action Buttons Grid
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Create Schedule", style = MaterialTheme.typography.titleMedium)
+                    DashboardButton("Create Schedule", Icons.Filled.CalendarMonth) {
+                        navController.navigate("schedule_create")
+                    }
+                    DashboardButton("Pending Bookings", Icons.Filled.Schedule) {
+                        navController.navigate("pending_bookings")
+                    }
+                    DashboardButton("Manage Bookings", Icons.Filled.ManageAccounts) {
+                        navController.navigate("manage_bookings")
+                    }
+                    DashboardButton("Active Bookings", Icons.Filled.List) {
+                        navController.navigate("active_bookings")
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DashboardButton(
+    title: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    onClick: () -> Unit
+) {
+    Button(
+        onClick = onClick,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+    ) {
+        Icon(icon, contentDescription = title, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(title, fontSize = 16.sp, fontWeight = FontWeight.Medium)
     }
 }

@@ -46,7 +46,7 @@ fun BookingHistoryScreen(
         } else {
             LazyColumn(Modifier.padding(padding)) {
                 items(bookings) { item ->
-                    if (item.status == BookingStatus.Completed || item.status == BookingStatus.Canceled) {
+                    if (item.status == "Completed" || item.status == "Canceled") {
                         BookingHistoryRow(item)
                     }
                 }
@@ -66,13 +66,12 @@ fun BookingHistoryRow(item: BookingItem) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(item.station, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
-                AssistChip(onClick = {}, label = { Text(item.status.name) })
+                Text(item.stationName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                AssistChip(onClick = {}, label = { Text(item.status) })
             }
             Spacer(Modifier.height(6.dp))
-            val whenText = runCatching { ZonedDateTime.parse(item.startIso).toLocalDateTime().toString().replace('T', ' ') }
-                .getOrElse { item.startIso }
-            Text("${item.id} • ${item.durationMin} min")
+            val whenText = "${item.date} ${item.start} - ${item.end}"
+            Text("${item.id} • ${item.stationType}")
             Text(whenText, style = MaterialTheme.typography.bodyMedium)
         }
     }
@@ -83,8 +82,42 @@ fun BookingHistoryRow(item: BookingItem) {
 @Composable
 private fun BookingHistoryScreenPreview() {
     val sample = listOf(
-        BookingItem("BK-1101", "Orion DC Fast • 50kW", ZonedDateTime.now().minusDays(2).withHour(17).withMinute(30).toString(), 60, BookingStatus.Completed),
-        BookingItem("BK-1102", "City Mall AC • 7kW", ZonedDateTime.now().minusDays(3).withHour(10).withMinute(0).toString(), 45, BookingStatus.Canceled),
+        BookingItem(
+            id = "BK-1101",
+            nic = "200011701132",
+            ownerName = "Orion DC Fast",
+            ownerEmail = "orion@email.com",
+            ownerPhone = "0771234567",
+            stationId = "station1",
+            stationName = "Orion DC Fast • 50kW",
+            stationAddress = "123 Main St",
+            stationType = "DC",
+            date = "2025-10-07",
+            start = "17:30:00",
+            end = "18:30:00",
+            status = "Completed",
+            qrToken = null,
+            createdAt = "2025-10-07T17:30:00Z",
+            updatedAt = null
+        ),
+        BookingItem(
+            id = "BK-1102",
+            nic = "200011701132",
+            ownerName = "City Mall AC",
+            ownerEmail = "citymall@email.com",
+            ownerPhone = "0779876543",
+            stationId = "station2",
+            stationName = "City Mall AC • 7kW",
+            stationAddress = "456 City Mall",
+            stationType = "AC",
+            date = "2025-10-06",
+            start = "10:00:00",
+            end = "10:45:00",
+            status = "Canceled",
+            qrToken = null,
+            createdAt = "2025-10-06T10:00:00Z",
+            updatedAt = null
+        )
     )
     MaterialTheme(colorScheme = lightColorScheme()) {
         BookingHistoryScreen(

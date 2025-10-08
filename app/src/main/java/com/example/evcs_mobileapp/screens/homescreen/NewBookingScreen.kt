@@ -21,8 +21,11 @@ import com.example.evcs_mobileapp.model.StationDto
 import com.example.evcs_mobileapp.model.ScheduleSlotDto
 import androidx.compose.ui.platform.LocalContext
 import androidx.room.Room
+import com.example.evcs_mobileapp.AppConstants
 import com.example.evcs_mobileapp.db.AppDatabase
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -364,13 +367,25 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
                                         put("end", slot.end)
                                     }
                                     val body = json.toString().toRequestBody("application/json".toMediaType())
+                                    Log.d("NewBookingScreen", "Booking JSON: $json")
+
+                                    // Get token from SharedPreferences
+                                    val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
+                                    val token = prefs.getString("token", "") ?: ""
+
                                     val request = Request.Builder()
-                                        .url("http://10.0.2.2:5132/api/Bookings")
+                                        .url("${AppConstants.BASE_URL}bookings")  // Use your BASE_URL constant
                                         .post(body)
                                         .addHeader("Content-Type", "application/json")
+                                        .addHeader("Authorization", "Bearer $token")  // Add authorization
                                         .build()
+
                                     try {
-                                        val response = client.newCall(request).execute()
+                                        Log.d("NewBookingScreen", "Sending booking request to: ${AppConstants.BASE_URL}bookings")
+                                        val response = withContext(Dispatchers.IO) {
+                                            client.newCall(request).execute()
+                                        }
+                                        Log.d("NewBookingScreen", "Response code: ${response.code}")
                                         if (response.isSuccessful) {
                                             bookingResult = "Booking successful!"
                                             showSuccessDialog = true
@@ -383,14 +398,7 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
                                     isProcessing = false
                                 }
                             },
-                            enabled = !isProcessing,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = primaryGreen
-                            ),
-                            shape = RoundedCornerShape(12.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
+                            enabled = !isProcessing
                         ) {
                             if (isProcessing) {
                                 CircularProgressIndicator(

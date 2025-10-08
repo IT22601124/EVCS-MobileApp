@@ -4,6 +4,7 @@ import com.example.evcs_mobileapp.screens.login_screens.LoginScreen
 import com.example.evcs_mobileapp.screens.homescreen.OwnerHomeScreen
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +64,7 @@ fun MainNavHost() {
     var isFirstLaunch by remember { mutableStateOf(true) }
     var startDestination by remember { mutableStateOf<String?>(null) }
 
+
     // Check SharedPreferences for first launch
     LaunchedEffect(Unit) {
         val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
@@ -76,6 +78,7 @@ fun MainNavHost() {
     val token = prefs.getString("token", null)
     val role = prefs.getString("role", null)
 
+    Log.d("MainNavHost", "Token: $token, Role: $role, isFirstLaunch: $isFirstLaunch")
     LaunchedEffect(token, role, isFirstLaunch) {
         if (token.isNullOrEmpty()) {
             startDestination = if (isFirstLaunch) "walkthrough_1" else "login"
@@ -121,6 +124,7 @@ fun MainNavHost() {
             composable("operator_logout") { OperatorLogoutScreen(navController) }
             composable("operator_profile") { com.example.evcs_mobileapp.screens.operator_screens.OperatorProfileScreen(navController) }
             composable(route = "schedule_create"){ ScheduleCreateScreen(navController) }
+            composable(route = "pending_bookings"){ com.example.evcs_mobileapp.screens.operator_screens.PendingBookingsScreen(navController) }
         }
     }
 }

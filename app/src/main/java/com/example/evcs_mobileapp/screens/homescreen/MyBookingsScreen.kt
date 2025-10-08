@@ -1,6 +1,7 @@
 package com.example.evcs_mobileapp.screens.homescreen
 
 import android.os.Build
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -14,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.evcs_mobileapp.AppConstants
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
@@ -21,14 +23,27 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.ZonedDateTime
+import androidx.room.Room
+import com.example.evcs_mobileapp.db.AppDatabase
 
 enum class BookingStatus { Pending, Approved, Cancelled, Completed, Canceled }
 data class BookingItem(
     val id: String,
-    val station: String,
-    val startIso: String,
-    val durationMin: Int,
-    val status: BookingStatus
+    val nic: String,
+    val ownerName: String,
+    val ownerEmail: String,
+    val ownerPhone: String,
+    val stationId: String,
+    val stationName: String,
+    val stationAddress: String,
+    val stationType: String,
+    val date: String,
+    val start: String,
+    val end: String,
+    val status: String,
+    val qrToken: String?,
+    val createdAt: String,
+    val updatedAt: String?
 )
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -40,35 +55,77 @@ fun MyBookingsScreen(
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("evcs_prefs", android.content.Context.MODE_PRIVATE)
     val token = prefs.getString("token", null)
-    val nic = prefs.getString("nic", "") ?: ""
+
+    val db = remember(context) {
+        Room.databaseBuilder(
+            context,
+            AppDatabase::class.java,
+            "evcs_db"
+        ).build()
+    }
+    val dao = db.authResponseDao()
+    var user by remember { mutableStateOf<com.example.evcs_mobileapp.db.AuthResponseEntity?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        user = dao.getUser()
+    }
+    val nic = user?.nic ?: ""
+
     var bookings by remember { mutableStateOf<List<BookingItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
     val scope = rememberCoroutineScope()
+
+    // Debug logging
+    LaunchedEffect(Unit) {
+        Log.d("MyBookingsScreen", "Token: ${token?.take(20)}...")
+        Log.d("MyBookingsScreen", "NIC: $nic")
+        Log.d("MyBookingsScreen", "Base URL: ${AppConstants.BASE_URL}")
+    }
 
     LaunchedEffect(nic) {
         if (nic.isNotBlank() && !token.isNullOrBlank()) {
             loading = true
             error = ""
             val client = OkHttpClient()
-            val url = "http://10.0.2.2:5132/api/bookings/by-owner/$nic"
+            // Use your working BASE_URL instead of emulator address
+            val url = "${AppConstants.BASE_URL}bookings/by-owner/$nic"
+            Log.d("MyBookingsScreen", "Fetching bookings from: $url")
+
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $token")
+                .addHeader("Content-Type", "application/json")
                 .build()
+
             try {
-                val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
+                val response = withContext(Dispatchers.IO) {
+                    client.newCall(request).execute()
+                }
+                val responseBody = response.body?.string() ?: "[]"
+                Log.d("MyBookingsScreen", "Response code: ${response.code}")
+                Log.d("MyBookingsScreen", "Response body: $responseBody")
+
                 if (response.isSuccessful) {
-                    val body = response.body?.string() ?: "[]"
                     val type = object : com.google.gson.reflect.TypeToken<List<BookingItem>>() {}.type
-                    bookings = Gson().fromJson(body, type)
+                    bookings = Gson().fromJson(responseBody, type) ?: emptyList()
+                    Log.d("MyBookingsScreen", "Parsed ${bookings.size} bookings")
                 } else {
-                    error = "Failed to fetch bookings: ${response.message}"
+                    error = "Failed to fetch bookings: ${response.code} - $responseBody"
+                    Log.e("MyBookingsScreen", error)
                 }
             } catch (e: Exception) {
                 error = "Error: ${e.localizedMessage}"
+                Log.e("MyBookingsScreen", "Exception fetching bookings", e)
             }
             loading = false
+        } else {
+            error = when {
+                token.isNullOrBlank() -> "Not logged in. Please login first."
+                nic.isBlank() -> "User NIC not found. Please login again."
+                else -> "Unknown error"
+            }
+            Log.e("MyBookingsScreen", error)
         }
     }
 
@@ -80,26 +137,53 @@ fun MyBookingsScreen(
             }
         }
     ) { padding ->
-        if (loading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else if (error.isNotBlank()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(error, color = MaterialTheme.colorScheme.error)
-            }
-        } else if (bookings.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No upcoming bookings")
-            }
-        } else {
-            LazyColumn(Modifier.padding(padding)) {
-                items(bookings) { item ->
-                    if (item.status == BookingStatus.Pending || item.status == BookingStatus.Approved) {
-                        BookingItemRow(item, navController)
+        Column(modifier = Modifier.padding(padding)) {
+            // Debug info (remove in production)
+            Text(
+                text = "Debug: NIC=$nic, Token=${if (token.isNullOrBlank()) "None" else "Present"}",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(16.dp)
+            )
+
+            when {
+                loading -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator()
                     }
                 }
-                item { Spacer(Modifier.height(88.dp)) }
+                error.isNotBlank() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(error, color = MaterialTheme.colorScheme.error)
+                            Spacer(Modifier.height(16.dp))
+                            Button(onClick = { navController.navigate("login") }) {
+                                Text("Go to Login")
+                            }
+                        }
+                    }
+                }
+                bookings.isEmpty() -> {
+                    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("No bookings found")
+                            Spacer(Modifier.height(16.dp))
+                            Button(onClick = { navController.navigate("new_booking") }) {
+                                Text("Create Your First Booking")
+                            }
+                        }
+                    }
+                }
+                else -> {
+                    LazyColumn {
+                        items(bookings) { item ->
+                            if (item.status == BookingStatus.Pending.name ||
+                                item.status == BookingStatus.Approved.name) {
+                                BookingItemRow(item, navController)
+                            }
+                        }
+                        item { Spacer(Modifier.height(88.dp)) }
+                    }
+                }
             }
         }
     }
@@ -114,22 +198,54 @@ fun BookingItemRow(item: BookingItem, navController: NavController) {
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(item.station, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                AssistChip(onClick = {}, label = { Text(item.status.name) })
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = item.stationName,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                AssistChip(
+                    onClick = {},
+                    label = { Text(item.status) }
+                )
             }
             Spacer(Modifier.height(6.dp))
-            val whenText = runCatching { ZonedDateTime.parse(item.startIso).toLocalDateTime().toString().replace('T', ' ') }
-                .getOrElse { item.startIso }
-            Text("${item.id}  ${item.durationMin} min")
+            Text(
+                text = item.stationAddress,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(4.dp))
+            val whenText = "${item.date} ${item.start} - ${item.end}"
             Text(whenText, style = MaterialTheme.typography.bodyMedium)
+
+            if (item.qrToken != null) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "QR Token: ${item.qrToken}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                if (item.status == BookingStatus.Pending || item.status == BookingStatus.Approved) {
+                if (item.status == BookingStatus.Pending.name ||
+                    item.status == BookingStatus.Approved.name) {
                     Button(onClick = { /* Edit logic if >=12h before */ }) {
                         Text("Edit")
                     }
                     Spacer(Modifier.width(8.dp))
-                    Button(onClick = { /* Cancel logic if >=12h before */ }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
+                    Button(
+                        onClick = { /* Cancel logic if >=12h before */ },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
                         Text("Cancel")
                     }
                 }

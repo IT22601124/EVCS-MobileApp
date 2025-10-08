@@ -20,6 +20,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.room.Room
 import com.example.evcs_mobileapp.db.AppDatabase
 import kotlinx.coroutines.launch
+import kotlin.apply
+import kotlin.collections.remove
+import androidx.core.content.edit
+import android.util.Log
+import kotlin.apply
+import kotlin.collections.remove
+import kotlin.text.clear
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,11 +81,18 @@ fun ProfileScreen(navController: NavController) {
                 Button(
                     onClick = {
                         coroutineScope.launch {
+                            val sharedPref = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
+                            sharedPref.edit()
+                                .remove("token")
+                                .remove("role")
+                                .apply()
+
                             dao.clear()
                             navController.navigate("login") {
                                 popUpTo("profile") { inclusive = true }
                             }
                         }
+
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                     modifier = Modifier.fillMaxWidth().height(48.dp)

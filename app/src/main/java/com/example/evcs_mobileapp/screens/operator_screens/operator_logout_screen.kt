@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.edit
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -22,9 +23,11 @@ fun OperatorLogoutScreen(navController: NavHostController) {
     val context = LocalContext.current
 
     LaunchedEffect(Unit) {
-        // Clear token from SharedPreferences
-        val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
-        prefs.edit().remove("token").apply()
+        val sharedPref = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
+        sharedPref.edit()
+            .remove("token")
+            .remove("role")
+            .apply()
         // Clear local DB auth info
         GlobalScope.launch(Dispatchers.IO) {
             val db = Room.databaseBuilder(
