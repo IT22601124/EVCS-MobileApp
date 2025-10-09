@@ -88,7 +88,6 @@ fun MyBookingsScreen(
             loading = true
             error = ""
             val client = OkHttpClient()
-            // Use your working BASE_URL instead of emulator address
             val url = "${AppConstants.BASE_URL}bookings/by-owner/$nic"
             Log.d("MyBookingsScreen", "Fetching bookings from: $url")
 
@@ -99,17 +98,43 @@ fun MyBookingsScreen(
                 .build()
 
             try {
-                val response = withContext(Dispatchers.IO) {
-                    client.newCall(request).execute()
+                val (response, responseBody) = withContext(Dispatchers.IO) {
+                    val response = client.newCall(request).execute()
+                    val responseBody = response.body?.string() ?: "[]"
+                    response to responseBody
                 }
-                val responseBody = response.body?.string() ?: "[]"
                 Log.d("MyBookingsScreen", "Response code: ${response.code}")
                 Log.d("MyBookingsScreen", "Response body: $responseBody")
 
                 if (response.isSuccessful) {
                     val type = object : com.google.gson.reflect.TypeToken<List<BookingItem>>() {}.type
-                    bookings = Gson().fromJson(responseBody, type) ?: emptyList()
+                    val fetchedBookings: List<BookingItem> = Gson().fromJson(responseBody, type) ?: emptyList()
+                    bookings = fetchedBookings
                     Log.d("MyBookingsScreen", "Parsed ${bookings.size} bookings")
+                    // Save to SQL
+                    withContext(Dispatchers.IO) {
+                        val entities = fetchedBookings.map { item ->
+                            com.example.evcs_mobileapp.db.BookingEntity(
+                                id = item.id,
+                                nic = item.nic,
+                                ownerName = item.ownerName,
+                                ownerEmail = item.ownerEmail,
+                                ownerPhone = item.ownerPhone,
+                                stationId = item.stationId,
+                                stationName = item.stationName,
+                                stationAddress = item.stationAddress,
+                                stationType = item.stationType,
+                                date = item.date,
+                                start = item.start,
+                                end = item.end,
+                                status = item.status,
+                                qrToken = item.qrToken,
+                                createdAt = item.createdAt,
+                                updatedAt = item.updatedAt
+                            )
+                        }
+                        db.bookingDao().insertBookings(entities)
+                    }
                 } else {
                     error = "Failed to fetch bookings: ${response.code} - $responseBody"
                     Log.e("MyBookingsScreen", error)
@@ -138,12 +163,7 @@ fun MyBookingsScreen(
         }
     ) { padding ->
         Column(modifier = Modifier.padding(padding)) {
-            // Debug info (remove in production)
-            Text(
-                text = "Debug: NIC=$nic, Token=${if (token.isNullOrBlank()) "None" else "Present"}",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(16.dp)
-            )
+
 
             when {
                 loading -> {

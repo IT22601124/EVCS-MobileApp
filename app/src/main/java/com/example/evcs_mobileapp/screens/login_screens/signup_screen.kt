@@ -52,6 +52,8 @@ import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import androidx.room.Room
+import com.example.evcs_mobileapp.AppConstants
+import kotlin.String
 
 enum class Strength(val label: String) { WEAK("Weak"), MED("Medium"), STRONG("Strong") }
 
@@ -59,7 +61,7 @@ enum class Strength(val label: String) { WEAK("Weak"), MED("Medium"), STRONG("St
 @Composable
 fun SignupScreen(
     navController: NavHostController,
-    baseUrl: String = "http://10.0.2.2:5132/api/"
+    baseUrl: String = AppConstants.BASE_URL
 ) {
     // ---- State ----
     var nic by rememberSaveable { mutableStateOf("") }

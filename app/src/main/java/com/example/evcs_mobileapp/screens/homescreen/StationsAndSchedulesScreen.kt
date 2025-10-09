@@ -32,9 +32,11 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.time.LocalDate
 import java.util.Calendar
 import androidx.navigation.NavController
 import android.util.Log
+import com.example.evcs_mobileapp.AppConstants
 
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -50,6 +52,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
     val http = remember { OkHttpClient() }
     val gson = remember { Gson() }
     val scope = rememberCoroutineScope()
+    val baseUrl: String = AppConstants.BASE_URL
 
     // Theme colors
     val primaryGreen = Color(0xFF4CAF50)
@@ -70,7 +73,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                 return@launch
             }
 
-            val url = "http://10.0.2.2:5132/api/stations/with-weekly-schedules"
+            val url = "${baseUrl}stations/with-weekly-schedules"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $token")
@@ -164,10 +167,17 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
         fetchSchedules()
     }
 
-    val today = "2025-10-08" // Use current date
-    // Filter stations that have at least one schedule for today
-    val stationsWithTodaySchedules = stationsWithSchedules.filter { station ->
-        station.schedules.any { it.date == today }
+    val today = LocalDate.now().toString() // Use current date
+    // Find the next available schedule for each station (date >= today)
+    val stationsWithNextSchedules = stationsWithSchedules.mapNotNull { station ->
+        val nextSchedule = station.schedules
+            .filter { it.date != null && it.date >= today }
+            .minByOrNull { it.date ?: "9999-99-99" }
+        if (nextSchedule != null) {
+            station to nextSchedule
+        } else {
+            null
+        }
     }
 
     Box(
@@ -267,7 +277,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                             }
                         }
                     }
-                    stationsWithTodaySchedules.isEmpty() -> {
+                    stationsWithNextSchedules.isEmpty() -> {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -294,7 +304,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                                     color = Color(0xFF212121)
                                 )
                                 Text(
-                                    "There are no charging schedules for today.",
+                                    "There are no charging schedules for today or future dates.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = textSecondary
                                 )
@@ -320,10 +330,10 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                         LazyColumn(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
-                            items(stationsWithTodaySchedules) { station ->
+                            items(stationsWithNextSchedules) { (station, schedule) ->
                                 val stationName = station.name ?: "Unknown Station"
                                 val stationAddress = station.address ?: "Address not available"
-                                val todaySchedules = station.schedules.filter { it.date == today }
+                                val slots = schedule.slots
 
                                 Card(
                                     modifier = Modifier.fillMaxWidth(),
@@ -372,94 +382,92 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                                             color = Color(0xFFE0E0E0)
                                         )
 
-                                        // Schedules for today
-                                        if (todaySchedules.isEmpty()) {
+                                        // Schedules for next available date
+                                        Text(
+                                            "Available Time Slots for ${schedule.date}",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Color(0xFF212121),
+                                            modifier = Modifier.padding(bottom = 12.dp)
+                                        )
+                                        if (slots.isEmpty()) {
                                             Text(
-                                                "No time slots available for today",
+                                                "No time slots available",
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 color = textSecondary,
                                                 modifier = Modifier.padding(vertical = 8.dp)
                                             )
                                         } else {
-                                            todaySchedules.forEach { schedule ->
-                                                Text(
-                                                    "Available Time Slots for ${schedule.date}",
-                                                    style = MaterialTheme.typography.titleMedium,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = Color(0xFF212121),
-                                                    modifier = Modifier.padding(bottom = 12.dp)
-                                                )
-                                                schedule.slots.forEach { slot ->
-                                                    val slotText = "${slot.start} - ${slot.end}"
-                                                    val statusText = if (slot.available) "Available" else "Full"
-                                                    val capacityText = "Capacity: ${slot.capacity}"
+                                            slots.forEach { slot ->
+                                                val slotText = "${slot.start} - ${slot.end}"
+                                                val statusText = if (slot.available) "Available" else "Full"
+                                                val capacityText = "Capacity: ${slot.capacity}"
 
-                                                    Card(
+                                                Card(
+                                                    modifier = Modifier
+                                                        .fillMaxWidth()
+                                                        .padding(vertical = 6.dp)
+                                                        .clickable(enabled = slot.available) {
+                                                            bookingViewModel.setBooking(
+                                                                com.example.evcs_mobileapp.model.StationDto(
+                                                                    id = station.id,
+                                                                    name = station.name,
+                                                                    address = station.address,
+                                                                    latitude = station.latitude,
+                                                                    longitude = station.longitude,
+                                                                    type = station.type,
+                                                                    slots = station.slots,
+                                                                    isActive = station.isActive
+                                                                ),
+                                                                schedule.date,
+                                                                slot
+                                                            )
+                                                            navController.navigate("new_booking")
+                                                        },
+                                                    shape = RoundedCornerShape(8.dp),
+                                                    colors = CardDefaults.cardColors(
+                                                        containerColor = if (slot.available)
+                                                            lightGreen else Color(0xFFF5F5F5)
+                                                    ),
+                                                    elevation = CardDefaults.cardElevation(0.dp)
+                                                ) {
+                                                    Row(
                                                         modifier = Modifier
                                                             .fillMaxWidth()
-                                                            .padding(vertical = 6.dp)
-                                                            .clickable(enabled = slot.available) {
-                                                                bookingViewModel.setBooking(
-                                                                    com.example.evcs_mobileapp.model.StationDto(
-                                                                        id = station.id,
-                                                                        name = station.name,
-                                                                        address = station.address,
-                                                                        latitude = station.latitude,
-                                                                        longitude = station.longitude,
-                                                                        type = station.type,
-                                                                        slots = station.slots,
-                                                                        isActive = station.isActive
-                                                                    ),
-                                                                    schedule.date,
-                                                                    slot
-                                                                )
-                                                                navController.navigate("new_booking")
-                                                            },
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        colors = CardDefaults.cardColors(
-                                                            containerColor = if (slot.available)
-                                                                lightGreen else Color(0xFFF5F5F5)
-                                                        ),
-                                                        elevation = CardDefaults.cardElevation(0.dp)
+                                                            .padding(16.dp),
+                                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                                        verticalAlignment = Alignment.CenterVertically
                                                     ) {
-                                                        Row(
-                                                            modifier = Modifier
-                                                                .fillMaxWidth()
-                                                                .padding(16.dp),
-                                                            horizontalArrangement = Arrangement.SpaceBetween,
-                                                            verticalAlignment = Alignment.CenterVertically
-                                                        ) {
-                                                            Column(modifier = Modifier.weight(1f)) {
-                                                                Text(
-                                                                    slotText,
-                                                                    style = MaterialTheme.typography.titleMedium,
-                                                                    fontWeight = FontWeight.SemiBold,
-                                                                    color = if (slot.available) darkGreen else Color(0xFF757575)
-                                                                )
-                                                                Text(
-                                                                    capacityText,
-                                                                    style = MaterialTheme.typography.bodySmall,
-                                                                    color = if (slot.available) darkGreen else Color(0xFF9E9E9E),
-                                                                    modifier = Modifier.padding(top = 2.dp)
-                                                                )
-                                                            }
+                                                        Column(modifier = Modifier.weight(1f)) {
+                                                            Text(
+                                                                slotText,
+                                                                style = MaterialTheme.typography.titleMedium,
+                                                                fontWeight = FontWeight.SemiBold,
+                                                                color = if (slot.available) darkGreen else Color(0xFF757575)
+                                                            )
+                                                            Text(
+                                                                capacityText,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = if (slot.available) darkGreen else Color(0xFF9E9E9E),
+                                                                modifier = Modifier.padding(top = 2.dp)
+                                                            )
+                                                        }
 
-                                                            Surface(
-                                                                shape = RoundedCornerShape(16.dp),
-                                                                color = if (slot.available) primaryGreen else Color(0xFFBDBDBD)
-                                                            ) {
-                                                                Text(
-                                                                    statusText,
-                                                                    modifier = Modifier.padding(
-                                                                        horizontal = 12.dp,
-                                                                        vertical = 6.dp
-                                                                    ),
-                                                                    style = MaterialTheme.typography.labelMedium,
-                                                                    fontWeight = FontWeight.Bold,
-                                                                    color = Color.White,
-                                                                    fontSize = 12.sp
-                                                                )
-                                                            }
+                                                        Surface(
+                                                            shape = RoundedCornerShape(16.dp),
+                                                            color = if (slot.available) primaryGreen else Color(0xFFBDBDBD)
+                                                        ) {
+                                                            Text(
+                                                                statusText,
+                                                                modifier = Modifier.padding(
+                                                                    horizontal = 12.dp,
+                                                                    vertical = 6.dp
+                                                                ),
+                                                                style = MaterialTheme.typography.labelMedium,
+                                                                fontWeight = FontWeight.Bold,
+                                                                color = Color.White,
+                                                                fontSize = 12.sp
+                                                            )
                                                         }
                                                     }
                                                 }

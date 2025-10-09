@@ -37,9 +37,10 @@ import org.json.JSONObject
 suspend fun getUserRoleFromServer(token: String): String? {
     return withContext(Dispatchers.IO) {
         try {
+            val baseUrl: String = AppConstants.BASE_URL
             val client = OkHttpClient()
             val request = Request.Builder()
-                .url("http://10.0.2.2:5132/api/auth/me") // Adjust endpoint if needed
+                .url("${baseUrl}auth/me") // Adjust endpoint if needed
                 .addHeader("Authorization", "Bearer $token")
                 .build()
             val response = client.newCall(request).execute()

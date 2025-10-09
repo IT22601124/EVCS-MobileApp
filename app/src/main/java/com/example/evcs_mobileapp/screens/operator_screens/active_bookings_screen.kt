@@ -14,6 +14,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import org.json.JSONArray
 import org.json.JSONObject
 import androidx.compose.ui.platform.LocalContext
+import com.example.evcs_mobileapp.AppConstants
 
 @Composable
 fun ActiveBookingsScreen(navController: NavHostController) {
@@ -25,12 +26,13 @@ fun ActiveBookingsScreen(navController: NavHostController) {
     var bookings by remember { mutableStateOf(listOf<BookingItem>()) }
     var resultMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    val baseUrl: String = AppConstants.BASE_URL
 
     // Fetch bookings from API
     LaunchedEffect(stationId, today) {
         isLoading = true
         val client = OkHttpClient()
-        val url = "http://10.0.2.2:5132/api/bookings?stationId=$stationId&date=$today"
+        val url = "${baseUrl}bookings?stationId=$stationId&date=$today"
         val request = Request.Builder()
             .url(url)
             .addHeader("Authorization", "Bearer $token")
@@ -94,7 +96,7 @@ fun ActiveBookingsScreen(navController: NavHostController) {
                             isLoading = true
                             resultMessage = ""
                             val client = OkHttpClient()
-                            val url = "http://10.0.2.2:5132/api/bookings/${booking.id}/complete"
+                            val url = "${baseUrl}bookings/${booking.id}/complete"
                             val request = Request.Builder()
                                 .url(url)
                                 .put(RequestBody.create("application/json".toMediaType(), "{}"))

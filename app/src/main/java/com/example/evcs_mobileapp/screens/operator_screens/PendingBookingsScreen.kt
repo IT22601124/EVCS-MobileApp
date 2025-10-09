@@ -13,25 +13,51 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import com.example.evcs_mobileapp.AppConstants
 import com.google.gson.Gson
+import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
-// Data class for bookings (reuse from your model)
-data class OperatorBookingItem(
+// Data classes matching API response
+// Station with schedules
+data class StationWithSchedules(
     val id: String,
-    val ownerName: String,
-    val ownerEmail: String,
-    val ownerPhone: String,
-    val stationName: String,
-    val stationAddress: String,
-    val stationType: String,
-    val date: String,
-    val start: String,
-    val end: String,
-    val status: String
+    val name: String?,
+    val address: String?,
+    val latitude: Double?,
+    val longitude: Double?,
+    val type: String?,
+    val slots: Int?,
+    val isActive: Boolean?,
+    val schedules: List<ScheduleDto> = emptyList()
+)
+
+data class ScheduleDto(
+    val id: String,
+    val stationId: String?,
+    val date: String?,
+    val slots: List<SlotDto> = emptyList()
+)
+
+data class SlotDto(
+    val start: String?,
+    val end: String?,
+    val available: Boolean?,
+    val capacity: Int?
+)
+
+// OperatorBookingItem for UI
+data class OperatorBookingItem(
+    val stationName: String?,
+    val stationAddress: String?,
+    val date: String?,
+    val start: String?,
+    val end: String?,
+    val available: Boolean?,
+    val capacity: Int?
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -44,14 +70,14 @@ fun PendingBookingsScreen(navController: NavController) {
     var bookings by remember { mutableStateOf<List<OperatorBookingItem>>(emptyList()) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf("") }
-    val scope = rememberCoroutineScope()
+    val baseUrl: String = AppConstants.BASE_URL
 
     LaunchedEffect(token) {
         if (!token.isNullOrBlank()) {
             loading = true
             error = ""
             val client = OkHttpClient()
-            val url = "http://10.0.2.2:5132/api/bookings/pending" // Adjust endpoint as needed
+            val url = "${baseUrl}stations/with-weekly-schedules" // Use correct endpoint
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Authorization", "Bearer $token")
@@ -61,8 +87,24 @@ fun PendingBookingsScreen(navController: NavController) {
                 val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
                 if (response.isSuccessful) {
                     val body = response.body?.string() ?: "[]"
-                    val type = object : com.google.gson.reflect.TypeToken<List<OperatorBookingItem>>() {}.type
-                    bookings = Gson().fromJson(body, type)
+                    val type = object : com.google.gson.reflect.TypeToken<List<StationWithSchedules>>() {}.type
+                    val stations: List<StationWithSchedules> = Gson().fromJson(body, type)
+                    // Extract pending slots (available == true) as pending bookings
+                    bookings = stations.flatMap { station ->
+                        station.schedules.flatMap { schedule ->
+                            schedule.slots.filter { it.available == true }.map { slot ->
+                                OperatorBookingItem(
+                                    stationName = station.name,
+                                    stationAddress = station.address,
+                                    date = schedule.date,
+                                    start = slot.start,
+                                    end = slot.end,
+                                    available = slot.available,
+                                    capacity = slot.capacity
+                                )
+                            }
+                        }
+                    }
                 } else {
                     error = "Failed to fetch bookings: ${response.message}"
                 }
@@ -108,10 +150,10 @@ fun PendingBookingCard(item: OperatorBookingItem, navController: NavController) 
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(item.stationName, style = MaterialTheme.typography.titleMedium)
-            Text("${item.date} ${item.start} - ${item.end}", style = MaterialTheme.typography.bodyMedium)
-            Text("Owner: ${item.ownerName}", style = MaterialTheme.typography.bodySmall)
-            Text("Status: ${item.status}", style = MaterialTheme.typography.bodySmall)
+            Text(item.stationName ?: "Unknown Station", style = MaterialTheme.typography.titleMedium)
+            Text("${item.date ?: ""} ${item.start ?: ""} - ${item.end ?: ""}", style = MaterialTheme.typography.bodyMedium)
+            Text("Capacity: ${item.capacity ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
+            Text("Available: ${if (item.available == true) "Yes" else "No"}", style = MaterialTheme.typography.bodySmall)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                 Button(onClick = { /* Approve logic */ }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
                     Text("Approve")
@@ -124,4 +166,3 @@ fun PendingBookingCard(item: OperatorBookingItem, navController: NavController) 
         }
     }
 }
-

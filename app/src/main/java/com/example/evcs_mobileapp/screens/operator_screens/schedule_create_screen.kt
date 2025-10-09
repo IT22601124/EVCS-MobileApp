@@ -18,6 +18,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
 import androidx.compose.ui.platform.LocalContext
+import com.example.evcs_mobileapp.AppConstants
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -51,6 +52,7 @@ fun ScheduleCreateScreen(navController: NavHostController) {
     var selectedStation by remember { mutableStateOf<Pair<String, String>?>(null) }
     var stationDropdownExpanded by remember { mutableStateOf(false) }
     var isStationsLoading by remember { mutableStateOf(true) }
+    val baseUrl = AppConstants.BASE_URL
 
     // Fetch stations on first composition
     LaunchedEffect(token) {
@@ -58,7 +60,7 @@ fun ScheduleCreateScreen(navController: NavHostController) {
             val stationList = withContext(Dispatchers.IO) {
                 val client = OkHttpClient()
                 val request = Request.Builder()
-                    .url("http://10.0.2.2:5132/api/stations")
+                    .url("${baseUrl}stations")
                     .addHeader("Authorization", "Bearer $token")
                     .build()
                 val response = client.newCall(request).execute()
@@ -285,7 +287,7 @@ fun ScheduleCreateScreen(navController: NavHostController) {
                     val client = OkHttpClient()
                     val body = RequestBody.create("application/json".toMediaType(), json.toString())
                     val request = Request.Builder()
-                        .url("http://10.0.2.2:5132/api/schedules")
+                        .url("${baseUrl}schedules")
                         .put(body) // Use POST for creation
                         .addHeader("Content-Type", "application/json")
                         .addHeader("Authorization", "Bearer $token")

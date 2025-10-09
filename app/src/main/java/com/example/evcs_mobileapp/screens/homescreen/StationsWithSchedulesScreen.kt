@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.evcs_mobileapp.AppConstants
 import com.example.evcs_mobileapp.model.ScheduleSlotDto
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -44,12 +45,13 @@ fun StationsWithSchedulesScreen() {
     val scope = rememberCoroutineScope()
     val http = remember { OkHttpClient() }
     val gson = remember { Gson() }
+    val baseUrl: String = AppConstants.BASE_URL
 
     // Fetch all stations with schedules on first load
     LaunchedEffect(Unit) {
         loading = true
         error = ""
-        val url = "http://10.0.2.2:5132/api/stations/with-schedules"
+        val url = "${baseUrl}stations/with-schedules"
         val reqBuilder = Request.Builder().url(url)
         if (!token.isNullOrBlank()) reqBuilder.addHeader("Authorization", "Bearer $token")
         try {
