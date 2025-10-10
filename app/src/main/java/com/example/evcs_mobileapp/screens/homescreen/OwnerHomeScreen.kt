@@ -42,8 +42,8 @@ fun OwnerHomeScreen(
     navController: NavController,
     pendingCount: Int = 2,
     approvedCount: Int = 5,
-    nextBookingStation: String = "EVCS Station 1",
-    nextBookingTime: String = "2025-09-29 10:00",
+    nextBookingStation: String = "Station 1",
+    nextBookingTime: String = "2025-10-12 10:00",
 ) {
     val context = LocalContext.current
     val db = remember(context) {
@@ -232,11 +232,11 @@ fun OwnerHomeScreen(
                         Text("Manage Bookings")
                     }
                     OutlinedButton(
-                        onClick = { navController.navigate("new_booking") },
+                        onClick = { navController.navigate("approved_bookings") },
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(14.dp)
                     ) {
-                        Text("Create Booking")
+                        Text("Approved Bookings")
                     }
                 }
 

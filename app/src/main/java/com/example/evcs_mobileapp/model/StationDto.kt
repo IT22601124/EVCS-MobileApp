@@ -11,4 +11,3 @@ data class StationDto(
     val slots: Int,
     val isActive: Boolean
 )
-

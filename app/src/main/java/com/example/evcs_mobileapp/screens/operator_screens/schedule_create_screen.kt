@@ -318,16 +318,7 @@ fun ScheduleCreateScreen(navController: NavHostController) {
             }, enabled = !isLoading && selectedStation != null && date.isNotBlank() && slots.isNotEmpty() && slots.all { it.startTime.isNotBlank() && it.endTime.isNotBlank() }, modifier = Modifier.fillMaxWidth()) {
                 if (isLoading) CircularProgressIndicator(modifier = Modifier.size(20.dp)) else Text("Create Schedule")
             }
-            if (!isLoading && showError) {
-                val errorMsg = when {
-                    selectedStation == null -> "Please select a station."
-                    date.isBlank() -> "Please select a date."
-                    slots.isEmpty() -> "Please add at least one slot."
-                    slots.any { it.startTime.isBlank() || it.endTime.isBlank() } -> "Please set start and end time for all slots."
-                    else -> "Unknown error."
-                }
-                Text(errorMsg, color = MaterialTheme.colorScheme.error)
-            }
+
             // Show error if button is disabled and user tries to click
             LaunchedEffect(!isLoading && !(!isLoading && selectedStation != null && date.isNotBlank() && slots.isNotEmpty() && slots.all { it.startTime.isNotBlank() && it.endTime.isNotBlank() })) {
                 showError = true

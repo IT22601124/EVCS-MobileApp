@@ -32,6 +32,9 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import com.example.evcs_mobileapp.screens.homescreen.ApprovedBookingsScreen
+import com.example.evcs_mobileapp.screens.homescreen.BookingStatus
+import com.example.evcs_mobileapp.screens.homescreen.BookingItem
 
 // Helper function to check user role from server
 suspend fun getUserRoleFromServer(token: String): String? {
@@ -127,6 +130,7 @@ fun MainNavHost() {
             composable(route = "schedule_create"){ ScheduleCreateScreen(navController) }
             composable(route = "pending_bookings"){ com.example.evcs_mobileapp.screens.operator_screens.PendingBookingsScreen(navController) }
             composable(route = "finalized_bookings"){ com.example.evcs_mobileapp.screens.operator_screens.FinalizedBookingsScreen(navController) }
+            composable(route = "approved_bookings") {com.example.evcs_mobileapp.screens.homescreen.ApprovedBookingsScreen(navController)}
         }
     }
 }
