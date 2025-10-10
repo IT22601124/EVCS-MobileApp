@@ -11,7 +11,7 @@ android {
 
     defaultConfig {
         applicationId = "com.example.evcs_mobileapp"
-        minSdk = 24
+        minSdk = 25
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
@@ -56,11 +56,11 @@ dependencies {
     implementation( libs.material)
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.material:material-icons-extended:1.5.0")
     implementation("androidx.compose.ui:ui:1.5.0")
     implementation("androidx.compose.material3:material3:1.1.0")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.0")
-    implementation("androidx.compose.material:material-icons-extended:1.5.0")
+    implementation("androidx.compose.foundation:foundation:1.5.0")
     implementation("androidx.activity:activity-compose:1.7.2")
     implementation(libs.androidx.ui.text)
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -68,9 +68,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.3")
     implementation("com.squareup.okhttp3:okhttp:4.10.0")
     implementation("androidx.room:room-runtime:2.6.1")
-    implementation(libs.androidx.foundation)
-    implementation(libs.material3)
-    implementation(libs.androidx.foundation.layout)
+    implementation(libs.androidx.compose.foundation)
     kapt("androidx.room:room-compiler:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")

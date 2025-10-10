@@ -111,6 +111,7 @@ fun StationsAndSchedulesScreen(navController: NavController, bookingViewModel: B
                             // Clear old data
                             scheduleDao.clearStations()
                             scheduleDao.clearSchedules()
+                            scheduleDao.clearSchedules()
                             scheduleDao.clearSlots()
 
                             // Insert new data

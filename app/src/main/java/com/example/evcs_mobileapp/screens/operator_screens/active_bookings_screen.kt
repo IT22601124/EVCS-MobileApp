@@ -21,6 +21,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.example.evcs_mobileapp.AppConstants
 import com.example.evcs_mobileapp.model.BookingItem
 import kotlinx.coroutines.CoroutineScope
+import okhttp3.RequestBody.Companion.toRequestBody
 
 
 @Composable
@@ -138,11 +139,12 @@ fun ActiveBookingsScreen(navController: NavHostController) {
                                 }
 
                                 val client = OkHttpClient()
-                                val url = "${baseUrl}bookings/${booking.id}/complete"
+                                val url = "${baseUrl}bookings/${booking.id}/finalize"
                                 val request = Request.Builder()
                                     .url(url)
-                                    .put(RequestBody.create("application/json".toMediaType(), "{}"))
+                                    .post("".toRequestBody("application/json".toMediaType()))
                                     .addHeader("Authorization", "Bearer $token")
+                                    .addHeader("Content-Type", "application/json")
                                     .build()
 
                                 try {

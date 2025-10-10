@@ -16,6 +16,7 @@ foundation = "1.9.2"
 uiText = "1.9.2"
 material3 = "1.4.0"
 foundationLayout = "1.9.2"
+composeFoundation = "1.5.3"
 
 [libraries]
 androidx-core-core-splashscreen = { module = "androidx.core:core-splashscreen", version.ref = "androidxCoreSplashscreen" }
@@ -40,6 +41,7 @@ androidx-foundation = { group = "androidx.compose.foundation", name = "foundatio
 androidx-ui-text = { group = "androidx.compose.ui", name = "ui-text", version.ref = "uiText" }
 material3 = { group = "androidx.compose.material3", name = "material3", version.ref = "material3" }
 androidx-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-compose-foundation = { group = "androidx.wear.compose", name = "compose-foundation", version.ref = "composeFoundation" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

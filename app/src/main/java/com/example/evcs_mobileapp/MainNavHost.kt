@@ -126,6 +126,7 @@ fun MainNavHost() {
             composable("operator_profile") { com.example.evcs_mobileapp.screens.operator_screens.OperatorProfileScreen(navController) }
             composable(route = "schedule_create"){ ScheduleCreateScreen(navController) }
             composable(route = "pending_bookings"){ com.example.evcs_mobileapp.screens.operator_screens.PendingBookingsScreen(navController) }
+            composable(route = "finalized_bookings"){ com.example.evcs_mobileapp.screens.operator_screens.FinalizedBookingsScreen(navController) }
         }
     }
 }

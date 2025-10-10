@@ -49,7 +49,7 @@ fun OperatorHomeScreen(navController: NavHostController) {
 
     val scope = rememberCoroutineScope()
     LaunchedEffect(Unit) {
-        scope.launch {
+        scope.launch(Dispatchers.IO) {
             try {
                 val token = prefs.getString("token", null)
                 if (!token.isNullOrBlank()) {
@@ -59,29 +59,29 @@ fun OperatorHomeScreen(navController: NavHostController) {
                         .addHeader("Authorization", "Bearer $token")
                         .addHeader("Content-Type", "application/json")
                         .build()
-                    val response = withContext(Dispatchers.IO) {
-                        client.newCall(request).execute()
-                    }
-                    if (response.isSuccessful) {
-                        val responseBody = response.body?.string()
-                        Log.d("OperatorHomeScreen", "User response: $responseBody")
 
-                        if (!responseBody.isNullOrBlank()) {
-                            try {
-                                val json = JSONObject(responseBody)
-                                val assignedStationId = json.optString("assignedStationId", null)
-                                Log.d("OperatorHomeScreen", "Extracted assignedStationId: $assignedStationId")
+                    val response = client.newCall(request).execute()
+                    val responseBody = response.body?.string()
+                    Log.d("OperatorHomeScreen", "User response: $responseBody")
 
-                                if (!assignedStationId.isNullOrBlank()) {
-                                    prefs.edit {
-                                        putString("assignedStationId", assignedStationId)
-                                        apply()
+                    if (response.isSuccessful && !responseBody.isNullOrBlank()) {
+                        try {
+                            val json = JSONObject(responseBody)
+                            val assignedStationId = json.optString("assignedStationId", null)
+                            Log.d("OperatorHomeScreen", "Extracted assignedStationId: $assignedStationId")
+
+                            withContext(Dispatchers.Main) {
+                                prefs.edit {
+                                    remove("assignedStationId") // First remove the old value
+                                    if (!assignedStationId.isNullOrBlank()) {
+                                        putString("assignedStationId", assignedStationId) // Then set the new value if we have one
                                     }
-                                    Log.d("OperatorHomeScreen", "Saved assignedStationId to SharedPreferences")
+                                    apply()
                                 }
-                            } catch (e: Exception) {
-                                Log.e("OperatorHomeScreen", "Error parsing JSON response", e)
+                                Log.d("OperatorHomeScreen", "Updated assignedStationId in SharedPreferences")
                             }
+                        } catch (e: Exception) {
+                            Log.e("OperatorHomeScreen", "Error parsing JSON response", e)
                         }
                     } else {
                         Log.e("OperatorHomeScreen", "Failed to fetch user info: ${response.code}")
@@ -224,8 +224,8 @@ fun OperatorHomeScreen(navController: NavHostController) {
                     DashboardButton("Pending Bookings", Icons.Filled.Schedule) {
                         navController.navigate("pending_bookings")
                     }
-                    DashboardButton("Manage Bookings", Icons.Filled.ManageAccounts) {
-                        navController.navigate("manage_bookings")
+                    DashboardButton("Finalized Bookings", Icons.Filled.ManageAccounts) {
+                        navController.navigate("finalized_bookings")
                     }
                     DashboardButton("Active Bookings", Icons.Filled.List) {
                         navController.navigate("active_bookings")

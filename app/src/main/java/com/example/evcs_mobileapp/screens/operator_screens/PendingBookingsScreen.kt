@@ -155,29 +155,43 @@ fun PendingBookingsScreen(navController: NavController) {
                                 Button(
                                     onClick = {
                                         scope.launch(Dispatchers.IO) {
-                                            isLoading = true
+                                            withContext(Dispatchers.Main) {
+                                                isLoading = true
+                                                resultMessage = ""
+                                            }
+
                                             val client = OkHttpClient()
                                             val approveUrl = "${baseUrl}bookings/${booking.id}/approve"
+
                                             val approveRequest = Request.Builder()
                                                 .url(approveUrl)
-                                                .put(RequestBody.create("application/json".toMediaType(), "{}"))
+                                                .post(RequestBody.create("application/json".toMediaType(), "{}"))
                                                 .addHeader("Authorization", "Bearer $token")
+                                                .addHeader("Content-Type", "application/json")
                                                 .build()
-
                                             try {
+                                                Log.d("PendingBookingsScreen", "Sending approve request to: $approveUrl")
                                                 val response = client.newCall(approveRequest).execute()
+                                                val responseBody = response.body?.string()
+                                                Log.d("PendingBookingsScreen", "Approve response: ${response.code}, body: $responseBody")
+
                                                 withContext(Dispatchers.Main) {
                                                     if (response.isSuccessful) {
-                                                        resultMessage = "Booking approved!"
+                                                        resultMessage = "Booking approved successfully!"
+                                                        // Remove the approved booking from the list
                                                         bookings = bookings.filter { it.id != booking.id }
                                                     } else {
-                                                        resultMessage = "Failed to approve: ${response.code}"
+                                                        resultMessage = "Failed to approve booking: ${response.code}"
+                                                        Log.e("PendingBookingsScreen", "Approve failed: ${response.code}, $responseBody")
                                                     }
-                                                    isLoading = false
                                                 }
                                             } catch (e: Exception) {
+                                                Log.e("PendingBookingsScreen", "Approve error", e)
                                                 withContext(Dispatchers.Main) {
-                                                    resultMessage = "Error: ${e.localizedMessage}"
+                                                    resultMessage = "Error approving booking: ${e.localizedMessage}"
+                                                }
+                                            } finally {
+                                                withContext(Dispatchers.Main) {
                                                     isLoading = false
                                                 }
                                             }
@@ -188,7 +202,9 @@ fun PendingBookingsScreen(navController: NavController) {
                                 ) {
                                     Text("Approve")
                                 }
+
                                 Spacer(Modifier.width(8.dp))
+
                                 Button(
                                     onClick = {
                                         scope.launch(Dispatchers.IO) {
@@ -237,4 +253,3 @@ fun PendingBookingsScreen(navController: NavController) {
         }
     }
 }
-
