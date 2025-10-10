@@ -4,8 +4,6 @@ import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,50 +12,33 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.evcs_mobileapp.AppConstants
-import com.google.gson.Gson
-import com.google.gson.annotations.SerializedName
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody
+import org.json.JSONArray
+import com.example.evcs_mobileapp.model.BookingItem
 
-// Data classes matching API response
-// Station with schedules
-data class StationWithSchedules(
+data class BookingDto(
     val id: String,
-    val name: String?,
-    val address: String?,
-    val latitude: Double?,
-    val longitude: Double?,
-    val type: String?,
-    val slots: Int?,
-    val isActive: Boolean?,
-    val schedules: List<ScheduleDto> = emptyList()
-)
-
-data class ScheduleDto(
-    val id: String,
+    val nic: String?,
+    val ownerName: String?,
+    val ownerEmail: String?,
+    val ownerPhone: String?,
     val stationId: String?,
-    val date: String?,
-    val slots: List<SlotDto> = emptyList()
-)
-
-data class SlotDto(
-    val start: String?,
-    val end: String?,
-    val available: Boolean?,
-    val capacity: Int?
-)
-
-// OperatorBookingItem for UI
-data class OperatorBookingItem(
     val stationName: String?,
     val stationAddress: String?,
+    val stationType: String?,
     val date: String?,
     val start: String?,
     val end: String?,
-    val available: Boolean?,
-    val capacity: Int?
+    val status: String?,
+    val qrToken: String?,
+    val createdAt: String?,
+    val updatedAt: String?
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,103 +47,194 @@ data class OperatorBookingItem(
 fun PendingBookingsScreen(navController: NavController) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("evcs_prefs", android.content.Context.MODE_PRIVATE)
-    val token = prefs.getString("token", null)
-    var bookings by remember { mutableStateOf<List<OperatorBookingItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(false) }
-    var error by remember { mutableStateOf("") }
+    val token = prefs.getString("token", "") ?: ""
+    val assignedStationId = prefs.getString("assignedStationId", "") ?: ""
+    val today = "2025-10-10"
+    var bookings by remember { mutableStateOf(listOf<BookingItem>()) }
+    var resultMessage by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
     val baseUrl: String = AppConstants.BASE_URL
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(token) {
-        if (!token.isNullOrBlank()) {
-            loading = true
-            error = ""
-            val client = OkHttpClient()
-            val url = "${baseUrl}stations/with-weekly-schedules" // Use correct endpoint
-            val request = Request.Builder()
-                .url(url)
-                .addHeader("Authorization", "Bearer $token")
-                .addHeader("Content-Type", "application/json")
-                .build()
-            try {
-                val response = withContext(Dispatchers.IO) { client.newCall(request).execute() }
-                if (response.isSuccessful) {
-                    val body = response.body?.string() ?: "[]"
-                    val type = object : com.google.gson.reflect.TypeToken<List<StationWithSchedules>>() {}.type
-                    val stations: List<StationWithSchedules> = Gson().fromJson(body, type)
-                    // Extract pending slots (available == true) as pending bookings
-                    bookings = stations.flatMap { station ->
-                        station.schedules.flatMap { schedule ->
-                            schedule.slots.filter { it.available == true }.map { slot ->
-                                OperatorBookingItem(
-                                    stationName = station.name,
-                                    stationAddress = station.address,
-                                    date = schedule.date,
-                                    start = slot.start,
-                                    end = slot.end,
-                                    available = slot.available,
-                                    capacity = slot.capacity
+    LaunchedEffect(assignedStationId, today) {
+        if (token.isNotBlank() && assignedStationId.isNotBlank()) {
+            isLoading = true
+            scope.launch(Dispatchers.IO) {
+                val client = OkHttpClient()
+                val url = "${baseUrl}bookings/by-station/$assignedStationId"
+                Log.d("PendingBookingsScreen", "Fetching bookings: $url")
+
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("Authorization", "Bearer $token")
+                    .addHeader("Content-Type", "application/json")
+                    .build()
+
+                try {
+                    val response = client.newCall(request).execute()
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        Log.d("PendingBookingsScreen", "Response: $body")
+                        val arr = JSONArray(body ?: "[]")
+                        val items = mutableListOf<BookingItem>()
+
+                        for (i in 0 until arr.length()) {
+                            val obj = arr.getJSONObject(i)
+                            val status = obj.optString("status")
+                            // Only add pending bookings
+                            if (status == "Pending") {
+                                items.add(
+                                    BookingItem(
+                                        id = obj.optString("id"),
+                                        nic = obj.optString("nic"),
+                                        ownerName = obj.optString("ownerName"),
+                                        ownerPhone = obj.optString("ownerPhone"),
+                                        stationId = obj.optString("stationId"),
+                                        date = obj.optString("date"),
+                                        start = obj.optString("start"),
+                                        end = obj.optString("end"),
+                                        status = status
+                                    )
                                 )
                             }
                         }
+                        bookings = items
+                        Log.d("PendingBookingsScreen", "Loaded ${items.size} pending bookings")
+                    } else {
+                        resultMessage = "Failed to fetch bookings: ${response.code}"
+                        Log.e("PendingBookingsScreen", resultMessage)
                     }
-                } else {
-                    error = "Failed to fetch bookings: ${response.message}"
+                } catch (e: Exception) {
+                    resultMessage = "Error: ${e.localizedMessage}"
+                    Log.e("PendingBookingsScreen", "Error fetching bookings", e)
                 }
-            } catch (e: Exception) {
-                error = "Error: ${e.localizedMessage}"
+                isLoading = false
             }
-            loading = false
         }
     }
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Pending Bookings") }) }
     ) { padding ->
-        if (loading) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (isLoading) {
                 CircularProgressIndicator()
-            }
-        } else if (error.isNotBlank()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text(error, color = MaterialTheme.colorScheme.error)
-            }
-        } else if (bookings.isEmpty()) {
-            Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No pending bookings")
-            }
-        } else {
-            LazyColumn(Modifier.padding(padding)) {
-                items(bookings) { item ->
-                    PendingBookingCard(item, navController)
+            } else if (bookings.isEmpty()) {
+                Text("No pending bookings found")
+            } else {
+                bookings.forEach { booking ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp),
+                        elevation = CardDefaults.cardElevation(4.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp)
+                        ) {
+                            Text("Customer: ${booking.ownerName}", style = MaterialTheme.typography.titleMedium)
+                            Text("NIC: ${booking.nic}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Phone: ${booking.ownerPhone}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Date: ${booking.date}", style = MaterialTheme.typography.bodyMedium)
+                            Text("Time: ${booking.start} - ${booking.end}", style = MaterialTheme.typography.bodyMedium)
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                horizontalArrangement = Arrangement.End
+                            ) {
+                                Button(
+                                    onClick = {
+                                        scope.launch(Dispatchers.IO) {
+                                            isLoading = true
+                                            val client = OkHttpClient()
+                                            val approveUrl = "${baseUrl}bookings/${booking.id}/approve"
+                                            val approveRequest = Request.Builder()
+                                                .url(approveUrl)
+                                                .put(RequestBody.create("application/json".toMediaType(), "{}"))
+                                                .addHeader("Authorization", "Bearer $token")
+                                                .build()
+
+                                            try {
+                                                val response = client.newCall(approveRequest).execute()
+                                                withContext(Dispatchers.Main) {
+                                                    if (response.isSuccessful) {
+                                                        resultMessage = "Booking approved!"
+                                                        bookings = bookings.filter { it.id != booking.id }
+                                                    } else {
+                                                        resultMessage = "Failed to approve: ${response.code}"
+                                                    }
+                                                    isLoading = false
+                                                }
+                                            } catch (e: Exception) {
+                                                withContext(Dispatchers.Main) {
+                                                    resultMessage = "Error: ${e.localizedMessage}"
+                                                    isLoading = false
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !isLoading,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                                ) {
+                                    Text("Approve")
+                                }
+                                Spacer(Modifier.width(8.dp))
+                                Button(
+                                    onClick = {
+                                        scope.launch(Dispatchers.IO) {
+                                            isLoading = true
+                                            val client = OkHttpClient()
+                                            val cancelUrl = "${baseUrl}bookings/${booking.id}/cancel"
+                                            val cancelRequest = Request.Builder()
+                                                .url(cancelUrl)
+                                                .put(RequestBody.create("application/json".toMediaType(), "{}"))
+                                                .addHeader("Authorization", "Bearer $token")
+                                                .build()
+
+                                            try {
+                                                val response = client.newCall(cancelRequest).execute()
+                                                withContext(Dispatchers.Main) {
+                                                    if (response.isSuccessful) {
+                                                        resultMessage = "Booking cancelled!"
+                                                        bookings = bookings.filter { it.id != booking.id }
+                                                    } else {
+                                                        resultMessage = "Failed to cancel: ${response.code}"
+                                                    }
+                                                    isLoading = false
+                                                }
+                                            } catch (e: Exception) {
+                                                withContext(Dispatchers.Main) {
+                                                    resultMessage = "Error: ${e.localizedMessage}"
+                                                    isLoading = false
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = !isLoading,
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                                ) {
+                                    Text("Cancel")
+                                }
+                            }
+                        }
+                    }
                 }
-                item { Spacer(Modifier.height(88.dp)) }
+            }
+            if (resultMessage.isNotBlank()) {
+                Spacer(Modifier.height(16.dp))
+                Text(resultMessage, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
 
-@Composable
-fun PendingBookingCard(item: OperatorBookingItem, navController: NavController) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(Modifier.padding(16.dp)) {
-            Text(item.stationName ?: "Unknown Station", style = MaterialTheme.typography.titleMedium)
-            Text("${item.date ?: ""} ${item.start ?: ""} - ${item.end ?: ""}", style = MaterialTheme.typography.bodyMedium)
-            Text("Capacity: ${item.capacity ?: "N/A"}", style = MaterialTheme.typography.bodySmall)
-            Text("Available: ${if (item.available == true) "Yes" else "No"}", style = MaterialTheme.typography.bodySmall)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                Button(onClick = { /* Approve logic */ }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                    Text("Approve")
-                }
-                Spacer(Modifier.width(8.dp))
-                Button(onClick = { /* Cancel logic */ }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)) {
-                    Text("Cancel")
-                }
-            }
-        }
-    }
-}

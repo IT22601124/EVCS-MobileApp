@@ -86,7 +86,7 @@ fun MainNavHost() {
         } else if (!role.isNullOrEmpty()) {
             startDestination = when (role) {
                 "Owner", "owner" -> "owner_home"
-                "Backoffice", "admin", "operator" -> "operator_home"
+                "Backoffice", "admin", "Operator","operator" -> "operator_home"
                 else -> "login"
             }
         } else {
@@ -96,7 +96,7 @@ fun MainNavHost() {
                 prefs.edit().putString("role", fetchedRole).apply()
                 startDestination = when (fetchedRole) {
                     "Owner", "owner" -> "owner_home"
-                    "Backoffice", "admin", "Operator" -> "operator_home"
+                    "Backoffice", "admin", "Operator","operator" -> "operator_home"
                     else -> "login"
                 }
             } else {

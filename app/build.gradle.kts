@@ -75,6 +75,8 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
     implementation("com.google.accompanist:accompanist-permissions:0.34.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.4.0")
+    implementation("com.google.zxing:core:3.5.2")
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0") // For easier QR generation in Android
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

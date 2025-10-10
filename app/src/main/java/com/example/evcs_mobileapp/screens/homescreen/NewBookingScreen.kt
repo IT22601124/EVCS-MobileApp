@@ -1,7 +1,9 @@
 package com.example.evcs_mobileapp.screens.homescreen
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -12,17 +14,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.evcs_mobileapp.viewmodel.BookingViewModel
-import androidx.navigation.NavController
-import com.example.evcs_mobileapp.model.StationDto
-import com.example.evcs_mobileapp.model.ScheduleSlotDto
-import androidx.compose.ui.platform.LocalContext
-import androidx.room.Room
 import com.example.evcs_mobileapp.AppConstants
 import com.example.evcs_mobileapp.db.AppDatabase
+import com.example.evcs_mobileapp.model.ScheduleSlotDto
+import com.example.evcs_mobileapp.model.StationDto
+import com.example.evcs_mobileapp.viewmodel.BookingViewModel
+import com.journeyapps.barcodescanner.BarcodeEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -31,6 +32,13 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import androidx.navigation.NavController
+import androidx.room.Room
+import androidx.compose.ui.graphics.asImageBitmap
+import android.widget.Toast
+import android.os.Build
+import android.provider.MediaStore
+import android.content.ContentValues
 
 @Composable
 fun NewBookingScreen(navController: NavController, bookingViewModel: BookingViewModel) {
@@ -43,6 +51,8 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
     var bookingResult by remember { mutableStateOf<String?>(null) }
     var isProcessing by remember { mutableStateOf(false) }
     var showSuccessDialog by remember { mutableStateOf(false) }
+    var showFailureDialog by remember { mutableStateOf(false) }
+    var qrBitmap by remember { mutableStateOf<Bitmap?>(null) }
     val scope = rememberCoroutineScope()
 
     // Theme colors
@@ -368,18 +378,14 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
                                     }
                                     val body = json.toString().toRequestBody("application/json".toMediaType())
                                     Log.d("NewBookingScreen", "Booking JSON: $json")
-
-                                    // Get token from SharedPreferences
                                     val prefs = context.getSharedPreferences("evcs_prefs", Context.MODE_PRIVATE)
                                     val token = prefs.getString("token", "") ?: ""
-
                                     val request = Request.Builder()
-                                        .url("${AppConstants.BASE_URL}bookings")  // Use your BASE_URL constant
+                                        .url("${AppConstants.BASE_URL}bookings")
                                         .post(body)
                                         .addHeader("Content-Type", "application/json")
-                                        .addHeader("Authorization", "Bearer $token")  // Add authorization
+                                        .addHeader("Authorization", "Bearer $token")
                                         .build()
-
                                     try {
                                         Log.d("NewBookingScreen", "Sending booking request to: ${AppConstants.BASE_URL}bookings")
                                         val response = withContext(Dispatchers.IO) {
@@ -388,9 +394,15 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
                                         Log.d("NewBookingScreen", "Response code: ${response.code}")
                                         if (response.isSuccessful) {
                                             bookingResult = "Booking successful!"
-                                            showSuccessDialog = true
+                                            navController.popBackStack()
+                                          //  showSuccessDialog = true
+                                            // Generate QR code with booking info
+                                            val qrContent = "NIC: ${user?.nic}\nStation: ${station.name}\nDate: $date\nSlot: ${slot.start} - ${slot.end}"
+                                            val encoder = BarcodeEncoder()
+                                            qrBitmap = encoder.encodeBitmap(qrContent, com.google.zxing.BarcodeFormat.QR_CODE, 400, 400)
                                         } else {
                                             bookingResult = "Booking failed: ${response.message}"
+                                            showFailureDialog = true
                                         }
                                     } catch (e: Exception) {
                                         bookingResult = "Network error: ${e.localizedMessage}"
@@ -456,16 +468,25 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
         AlertDialog(
             onDismissRequest = { },
             confirmButton = {
-                Button(
-                    onClick = {
-                        showSuccessDialog = false
-                        navController.popBackStack()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryGreen
-                    )
-                ) {
-                    Text("Done")
+                Row {
+                    Button(
+                        onClick = {
+                            qrBitmap?.let { saveQrToGallery(context, it) }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = accentBlue)
+                    ) {
+                        Text("Download QR")
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            showSuccessDialog = false
+                            navController.popBackStack()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = primaryGreen)
+                    ) {
+                        Text("Done")
+                    }
                 }
             },
             icon = {
@@ -483,11 +504,74 @@ fun NewBookingScreen(navController: NavController, bookingViewModel: BookingView
                 )
             },
             text = {
-                Text("Your charging slot has been successfully reserved.")
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Your charging slot has been successfully reserved.")
+                    Spacer(Modifier.height(16.dp))
+                    qrBitmap?.let {
+                        Image(
+                            bitmap = it.asImageBitmap(),
+                            contentDescription = "Booking QR Code",
+                            modifier = Modifier.size(200.dp)
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text("Scan this QR code at the station.", fontSize = 14.sp)
+                    }
+                }
             },
             shape = RoundedCornerShape(16.dp)
         )
     }
+
+    // Failure Dialog
+    if (showFailureDialog) {
+        AlertDialog(
+            onDismissRequest = { showFailureDialog = false },
+            confirmButton = {
+                Button(
+                    onClick = { showFailureDialog = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Text("Close")
+                }
+            },
+            icon = {
+                Icon(
+                    Icons.Default.Error,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(48.dp)
+                )
+            },
+            title = {
+                Text("Booking Failed", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Text("No slot available.")
+            },
+            shape = RoundedCornerShape(16.dp)
+        )
+    }
+}
+
+fun saveQrToGallery(context: Context, bitmap: Bitmap) {
+    val filename = "EVCS_Booking_QR_${System.currentTimeMillis()}.png"
+    val fos = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        val contentValues = ContentValues().apply {
+            put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+            put(MediaStore.MediaColumns.MIME_TYPE, "image/png")
+            put(MediaStore.MediaColumns.RELATIVE_PATH, "Pictures/EVCS_QR")
+        }
+        val uri = context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+        uri?.let { context.contentResolver.openOutputStream(it) }
+    } else {
+        val imagesDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_PICTURES).toString()
+        val file = java.io.File(imagesDir, filename)
+        java.io.FileOutputStream(file)
+    }
+    fos?.use {
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+        Toast.makeText(context, "QR code saved to gallery", Toast.LENGTH_SHORT).show()
+    } ?: Toast.makeText(context, "Failed to save QR code", Toast.LENGTH_SHORT).show()
 }
 
 @Composable

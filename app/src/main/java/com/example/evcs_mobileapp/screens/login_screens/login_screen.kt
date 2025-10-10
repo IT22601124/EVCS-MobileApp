@@ -283,7 +283,7 @@ fun LoginScreen(
                                             // Navigate based on role
                                             if (body.role == "Owner") {
                                                 navController.navigate("owner_home")
-                                            } else if (body.role == "Backoffice" || body.role == "admin" || body.role == "operator") {
+                                            } else if (body.role == "Backoffice" || body.role == "admin" || body.role == "Operator") {
                                                 navController.navigate("operator_home")
                                             } else {
                                                 errorMessage = "Unknown user role. Please contact support."

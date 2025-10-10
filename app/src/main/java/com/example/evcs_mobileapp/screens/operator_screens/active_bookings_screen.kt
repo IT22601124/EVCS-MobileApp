@@ -1,5 +1,6 @@
 package com.example.evcs_mobileapp.screens.operator_screens
 
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -7,6 +8,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -15,56 +19,90 @@ import org.json.JSONArray
 import org.json.JSONObject
 import androidx.compose.ui.platform.LocalContext
 import com.example.evcs_mobileapp.AppConstants
+import com.example.evcs_mobileapp.model.BookingItem
+import kotlinx.coroutines.CoroutineScope
+
 
 @Composable
 fun ActiveBookingsScreen(navController: NavHostController) {
     val context = LocalContext.current
     val prefs = context.getSharedPreferences("evcs_prefs", android.content.Context.MODE_PRIVATE)
     val token = prefs.getString("token", "") ?: ""
-    val stationId = prefs.getString("stationId", "") ?: ""
-    val today = "2025-10-04"
+    val today = "2025-10-10" // Updated to current date
     var bookings by remember { mutableStateOf(listOf<BookingItem>()) }
     var resultMessage by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     val baseUrl: String = AppConstants.BASE_URL
+    val scope = rememberCoroutineScope()
 
-    // Fetch bookings from API
-    LaunchedEffect(stationId, today) {
+    LaunchedEffect(token, today) {
         isLoading = true
-        val client = OkHttpClient()
-        val url = "${baseUrl}bookings?stationId=$stationId&date=$today"
-        val request = Request.Builder()
-            .url(url)
-            .addHeader("Authorization", "Bearer $token")
-            .build()
-        try {
-            val response = client.newCall(request).execute()
-            if (response.isSuccessful) {
-                val body = response.body?.string()
-                val arr = JSONArray(body ?: "[]")
-                val items = mutableListOf<BookingItem>()
-                for (i in 0 until arr.length()) {
-                    val obj = arr.getJSONObject(i)
-                    items.add(
-                        BookingItem(
-                            id = obj.optString("id"),
-                            nic = obj.optString("nic"),
-                            stationId = obj.optString("stationId"),
-                            date = obj.optString("date"),
-                            start = obj.optString("start"),
-                            end = obj.optString("end"),
-                            status = obj.optString("status")
-                        )
-                    )
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val client = OkHttpClient()
+                val userId = prefs.getString("assignedStationId", "") ?: ""
+                Log.d("ActiveBookingsScreen", "User ID: $userId")
+
+                if (userId.isNotBlank()) {
+                    val url = "${baseUrl}bookings/by-station/$userId"
+                    Log.d("ActiveBookingsScreen", "Fetching bookings from URL: $url")
+
+                    val request = Request.Builder()
+                        .url(url)
+                        .addHeader("Authorization", "Bearer $token")
+                        .addHeader("Content-Type", "application/json")
+                        .build()
+
+                    val response = client.newCall(request).execute()
+                    val responseBody = response.body?.string()
+                    Log.d("ActiveBookingsScreen", "Response code: ${response.code}, body: $responseBody")
+
+                    withContext(Dispatchers.Main) {
+                        if (response.isSuccessful && !responseBody.isNullOrBlank()) {
+                            val arr = JSONArray(responseBody)
+                            val items = mutableListOf<BookingItem>()
+
+                            for (i in 0 until arr.length()) {
+                                val obj = arr.getJSONObject(i)
+                                if (obj.optString("status") == "Approved") {
+                                    items.add(
+                                        BookingItem(
+                                            id = obj.optString("id"),
+                                            nic = obj.optString("nic"),
+                                            stationId = obj.optString("stationId"),
+                                            date = obj.optString("date"),
+                                            start = obj.optString("start"),
+                                            end = obj.optString("end"),
+                                            status = obj.optString("status")
+                                        )
+                                    )
+                                }
+                            }
+                            bookings = items
+                            Log.d("ActiveBookingsScreen", "Successfully parsed ${items.size} approved bookings")
+                        } else {
+                            resultMessage = "Failed to fetch bookings: ${response.code}"
+                            Log.e("ActiveBookingsScreen", resultMessage)
+                        }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        resultMessage = "No assigned station found for user"
+                        Log.e("ActiveBookingsScreen", resultMessage)
+                    }
                 }
-                bookings = items
-            } else {
-                resultMessage = "Failed to fetch bookings: ${response.code}"
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    resultMessage = "Network error: ${e.localizedMessage}"
+                    Log.e("ActiveBookingsScreen", "Network error", e)
+                }
+            } finally {
+                withContext(Dispatchers.Main) {
+                    isLoading = false
+                }
             }
-        } catch (e: Exception) {
-            resultMessage = "Error: ${e.localizedMessage}"
         }
-        isLoading = false
     }
 
     Scaffold { padding ->
@@ -93,28 +131,41 @@ fun ActiveBookingsScreen(navController: NavHostController) {
                             Text("Status: ${booking.status}", style = MaterialTheme.typography.bodySmall)
                         }
                         Button(onClick = {
-                            isLoading = true
-                            resultMessage = ""
-                            val client = OkHttpClient()
-                            val url = "${baseUrl}bookings/${booking.id}/complete"
-                            val request = Request.Builder()
-                                .url(url)
-                                .put(RequestBody.create("application/json".toMediaType(), "{}"))
-                                .addHeader("Authorization", "Bearer $token")
-                                .build()
-                            try {
-                                val response = client.newCall(request).execute()
-                                if (response.isSuccessful) {
-                                    resultMessage = "Booking finalized!"
-                                    bookings = bookings.filter { it.id != booking.id }
-                                } else {
-                                    resultMessage = "Failed to finalize: ${response.code}"
+                            scope.launch(Dispatchers.IO) {
+                                withContext(Dispatchers.Main) {
+                                    isLoading = true
+                                    resultMessage = ""
                                 }
-                            } catch (e: Exception) {
-                                resultMessage = "Error: ${e.localizedMessage}"
+
+                                val client = OkHttpClient()
+                                val url = "${baseUrl}bookings/${booking.id}/complete"
+                                val request = Request.Builder()
+                                    .url(url)
+                                    .put(RequestBody.create("application/json".toMediaType(), "{}"))
+                                    .addHeader("Authorization", "Bearer $token")
+                                    .build()
+
+                                try {
+                                    val response = client.newCall(request).execute()
+                                    withContext(Dispatchers.Main) {
+                                        if (response.isSuccessful) {
+                                            resultMessage = "Booking finalized!"
+                                            bookings = bookings.filter { it.id != booking.id }
+                                        } else {
+                                            resultMessage = "Failed to finalize: ${response.code}"
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    withContext(Dispatchers.Main) {
+                                        resultMessage = "Error: ${e.localizedMessage}"
+                                    }
+                                } finally {
+                                    withContext(Dispatchers.Main) {
+                                        isLoading = false
+                                    }
+                                }
                             }
-                            isLoading = false
-                        }, enabled = booking.status != "completed") {
+                        }, enabled = !isLoading && booking.status != "completed") {
                             Text("Finalize")
                         }
                     }
@@ -128,8 +179,8 @@ fun ActiveBookingsScreen(navController: NavHostController) {
     }
 }
 
-// Data class for booking item
-private data class BookingItem(
+// Make BookingItem public so it can be used elsewhere
+data class BookingItem(
     val id: String,
     val nic: String,
     val stationId: String,

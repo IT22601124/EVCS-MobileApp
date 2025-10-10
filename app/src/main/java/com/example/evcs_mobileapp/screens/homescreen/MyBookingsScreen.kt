@@ -83,6 +83,35 @@ fun MyBookingsScreen(
         Log.d("MyBookingsScreen", "Base URL: ${AppConstants.BASE_URL}")
     }
 
+    // Load bookings from SQLite first
+    LaunchedEffect(nic) {
+        if (nic.isNotBlank()) {
+            val localBookings = withContext(Dispatchers.IO) {
+                db.bookingDao().getBookingsByNic(nic)
+            }
+            bookings = localBookings.map { entity ->
+                BookingItem(
+                    id = entity.id,
+                    nic = entity.nic,
+                    ownerName = entity.ownerName,
+                    ownerEmail = entity.ownerEmail,
+                    ownerPhone = entity.ownerPhone,
+                    stationId = entity.stationId,
+                    stationName = entity.stationName,
+                    stationAddress = entity.stationAddress,
+                    stationType = entity.stationType,
+                    date = entity.date,
+                    start = entity.start,
+                    end = entity.end,
+                    status = entity.status,
+                    qrToken = entity.qrToken,
+                    createdAt = entity.createdAt,
+                    updatedAt = entity.updatedAt
+                )
+            }
+        }
+    }
+
     LaunchedEffect(nic) {
         if (nic.isNotBlank() && !token.isNullOrBlank()) {
             loading = true
@@ -103,14 +132,9 @@ fun MyBookingsScreen(
                     val responseBody = response.body?.string() ?: "[]"
                     response to responseBody
                 }
-                Log.d("MyBookingsScreen", "Response code: ${response.code}")
-                Log.d("MyBookingsScreen", "Response body: $responseBody")
-
                 if (response.isSuccessful) {
                     val type = object : com.google.gson.reflect.TypeToken<List<BookingItem>>() {}.type
                     val fetchedBookings: List<BookingItem> = Gson().fromJson(responseBody, type) ?: emptyList()
-                    bookings = fetchedBookings
-                    Log.d("MyBookingsScreen", "Parsed ${bookings.size} bookings")
                     // Save to SQL
                     withContext(Dispatchers.IO) {
                         val entities = fetchedBookings.map { item ->
@@ -135,6 +159,31 @@ fun MyBookingsScreen(
                         }
                         db.bookingDao().insertBookings(entities)
                     }
+                    // Reload from SQL after saving
+                    val localBookings = withContext(Dispatchers.IO) {
+                        db.bookingDao().getBookingsByNic(nic)
+                    }
+                    bookings = localBookings.map { entity ->
+                        BookingItem(
+                            id = entity.id,
+                            nic = entity.nic,
+                            ownerName = entity.ownerName,
+                            ownerEmail = entity.ownerEmail,
+                            ownerPhone = entity.ownerPhone,
+                            stationId = entity.stationId,
+                            stationName = entity.stationName,
+                            stationAddress = entity.stationAddress,
+                            stationType = entity.stationType,
+                            date = entity.date,
+                            start = entity.start,
+                            end = entity.end,
+                            status = entity.status,
+                            qrToken = entity.qrToken,
+                            createdAt = entity.createdAt,
+                            updatedAt = entity.updatedAt
+                        )
+                    }
+                    Log.d("MyBookingsScreen", "Parsed ${bookings.size} bookings from SQL")
                 } else {
                     error = "Failed to fetch bookings: ${response.code} - $responseBody"
                     Log.e("MyBookingsScreen", error)

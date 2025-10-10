@@ -1,5 +1,6 @@
 package com.example.evcs_mobileapp.screens.operator_screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -16,6 +17,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import com.example.evcs_mobileapp.AppConstants
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONObject
+import androidx.core.content.edit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,6 +34,7 @@ fun OperatorHomeScreen(navController: NavHostController) {
     val fullName = prefs.getString("fullName", "Operator") ?: "Operator"
     val email = prefs.getString("email", "operator@evcs.com") ?: "operator@evcs.com"
     val role = prefs.getString("role", "Operator") ?: "Operator"
+    val baseUrl = AppConstants.BASE_URL
 
     var showMenu by remember { mutableStateOf(false) }
     var selectedMenuIndex by remember { mutableStateOf(0) }
@@ -36,6 +46,52 @@ fun OperatorHomeScreen(navController: NavHostController) {
         Triple("Active Bookings", Icons.Filled.List, "active_bookings"),
         Triple("Logout", Icons.Filled.Logout, "operator_logout")
     )
+
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        scope.launch {
+            try {
+                val token = prefs.getString("token", null)
+                if (!token.isNullOrBlank()) {
+                    val client = OkHttpClient()
+                    val request = Request.Builder()
+                        .url("${baseUrl}Users/me")
+                        .addHeader("Authorization", "Bearer $token")
+                        .addHeader("Content-Type", "application/json")
+                        .build()
+                    val response = withContext(Dispatchers.IO) {
+                        client.newCall(request).execute()
+                    }
+                    if (response.isSuccessful) {
+                        val responseBody = response.body?.string()
+                        Log.d("OperatorHomeScreen", "User response: $responseBody")
+
+                        if (!responseBody.isNullOrBlank()) {
+                            try {
+                                val json = JSONObject(responseBody)
+                                val assignedStationId = json.optString("assignedStationId", null)
+                                Log.d("OperatorHomeScreen", "Extracted assignedStationId: $assignedStationId")
+
+                                if (!assignedStationId.isNullOrBlank()) {
+                                    prefs.edit {
+                                        putString("assignedStationId", assignedStationId)
+                                        apply()
+                                    }
+                                    Log.d("OperatorHomeScreen", "Saved assignedStationId to SharedPreferences")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("OperatorHomeScreen", "Error parsing JSON response", e)
+                            }
+                        }
+                    } else {
+                        Log.e("OperatorHomeScreen", "Failed to fetch user info: ${response.code}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("OperatorHomeScreen", "Error fetching user info", e)
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
